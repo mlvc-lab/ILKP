@@ -12,7 +12,7 @@ do
                 python3 down_ckpt.py $data -a $model --layers $layer -o ckpt_best.pth
             done
         else
-            echo "mobile friendly models"
+            echo "$arch"
             python3 down_ckpt.py $data -a $model -o ckpt_best.pth
         fi
     done
