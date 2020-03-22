@@ -61,6 +61,9 @@ def save_model(state, epoch, is_best, opt, n_retrain):
             if opt.version == 'v3' or opt.version == 'v3a':
                 model_file = dir_path / 'ckpt_new_{}_d{}_epoch_{}.pth'.format(
                     opt.version, opt.bind_size, epoch)
+            elif opt.version == 'v2q':
+                model_file = dir_path / 'ckpt_new_{}_q{}_epoch_{}.pth'.format(
+                    opt.version, opt.quant_bit, epoch)
             else:
                 model_file = dir_path / 'ckpt_new_{}_epoch_{}.pth'.format(
                     opt.version, epoch)
@@ -68,6 +71,9 @@ def save_model(state, epoch, is_best, opt, n_retrain):
         if opt.version == 'v3' or opt.version == 'v3a':
             model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
                 n_retrain, opt.version, opt.bind_size, epoch)
+        elif opt.version == 'v2q':
+            model_file = dir_path / 'ckpt_rt{}_{}_q{}_epoch_{}.pth'.format(
+                n_retrain, opt.version, opt.quant_bit, epoch)
         else:
             model_file = dir_path / 'ckpt_rt{}_{}_epoch_{}.pth'.format(
                 n_retrain, opt.version, epoch)
@@ -81,12 +87,18 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                 if opt.version == 'v3' or opt.version == 'v3a':
                     shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_d{}_best.pth'.format(
                         opt.version, opt.bind_size))
+                elif opt.version == 'v2q':
+                    shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_q{}_best.pth'.format(
+                        opt.version, opt.quant_bit))
                 else:
                     shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_best.pth'.format(
                         opt.version))
         else:
             if opt.version == 'v3' or opt.version == 'v3a':
                 shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
+                    n_retrain, opt.version, opt.bind_size))
+            elif opt.version == 'v2q':
+                shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_q{}_best.pth'.format(
                     n_retrain, opt.version, opt.bind_size))
             else:
                 shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_best.pth'.format(
@@ -103,6 +115,9 @@ def save_summary(summary, opt, n_retrain):
             if opt.version == 'v3' or opt.version == 'v3a':
                 file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
                     opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
+            elif opt.version == 'v2q':
+                file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
+                    opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.quant_bit)
             else:
                 file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
                     opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version)
@@ -110,6 +125,9 @@ def save_summary(summary, opt, n_retrain):
             if opt.version == 'v3' or opt.version == 'v3a':
                 file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
                     opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
+            elif opt.version == 'v2q':
+                file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
+                    opt.arch, opt.dataset, n_retrain, opt.version, opt.quant_bit)
             else:
                 file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
                     opt.arch, opt.dataset, n_retrain, opt.version)
@@ -119,6 +137,9 @@ def save_summary(summary, opt, n_retrain):
                 if opt.version == 'v3' or opt.version == 'v3a':
                     file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
                         opt.arch+str(opt.layers), opt.dataset, opt.version, opt.bind_size)
+                elif opt.version == 'v2q':
+                    file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
+                        opt.arch+str(opt.layers), opt.dataset, opt.version, opt.quant_bit)
                 else:
                     file_summ = dir_path / '{}_{}_new_{}.csv'.format(
                         opt.arch+str(opt.layers), opt.dataset, opt.version)
@@ -126,6 +147,9 @@ def save_summary(summary, opt, n_retrain):
                 if opt.version == 'v3' or opt.version == 'v3a':
                     file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
                         opt.arch, opt.dataset, opt.version, opt.bind_size)
+                elif opt.version == 'v2q':
+                    file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
+                        opt.arch, opt.dataset, opt.version, opt.quant_bit)
                 else:
                     file_summ = dir_path / '{}_{}_new_{}.csv'.format(
                         opt.arch, opt.dataset, opt.version)

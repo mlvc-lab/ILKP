@@ -48,6 +48,9 @@ def config():
                              '(subvector size) on version 3 (v3) (default: 2)')
     parser.add_argument('--analysis', dest='analysis', action='store_true',
                         help='Analysis mode?')
+    # for quantization
+    parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
+                        help='number of bits for quantization (Default: 8)')
 
     cfg = parser.parse_args()
     return cfg
@@ -91,7 +94,9 @@ def main():
                 exit()
             weight_analysis(model, checkpoint)
             return
-
+        if opt.version == 'v2q':
+            print('==> {}bit Quantization...'.format(opt.quant_bit))
+            quantize(model, opt.quant_bit)
         print('==> Find the most similar kernel in previous layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         new_ckpt_name = find_kernel(model, checkpoint)
@@ -172,7 +177,7 @@ def find_kernel(model, ckpt):
                                     if min_diff > diff:
                                         min_diff = diff
                                         ref_idx = v * len(w_conv[ref_layer]) + w
-                        elif opt.version == 'v2' or opt.version == 'v2a':
+                        elif opt.version in ['v2', 'v2a', 'v2q']:
                             for v in range(len(w_conv[ref_layer])):
                                 for w in range(len(w_conv[ref_layer][v])):
                                     # find alpha, beta using least squared method every kernel in reference layer
@@ -207,7 +212,7 @@ def find_kernel(model, ckpt):
                         if min_diff > diff:
                             min_diff = diff
                             ref_idx = k
-                elif opt.version == 'v2' or opt.version == 'v2a':
+                elif opt.version in ['v2', 'v2a', 'v2q']:
                     for k in range(len(w_dwconv[ref_layer])):
                         # find alpha, beta using least squared method every kernel in reference layer
                         mean_cur = np.mean(w_dwconv[i][j][0])
@@ -236,6 +241,8 @@ def find_kernel(model, ckpt):
 
     if opt.version == 'v3' or opt.version == 'v3a':
         new_model_filename = '{}_{}_d{}.pth'.format(opt.ckpt[:-4], opt.version, opt.bind_size)
+    elif opt.version == 'v2q':
+        new_model_filename = '{}_{}_q{}.pth'.format(opt.ckpt[:-4], opt.version, opt.quant_bit)
     else:
         new_model_filename = '{}_{}.pth'.format(opt.ckpt[:-4], opt.version)
     model_file = dir_path / new_model_filename
@@ -307,6 +314,32 @@ def weight_analysis(model, ckpt):
             plt.scatter(weights_cur, weights_ref)
             plt.savefig(dir_weights/'{}_{}_weight_{}_{}.png'.format(opt.arch, opt.dataset, i, j),
                         bbox_inches='tight')
+
+
+def quantize(model, num_bits=8):
+    """quantize weights of convolution kernels
+    """
+    if opt.arch in hasDiffLayersArchs:
+        w_conv = model.get_weights_conv(use_cuda=False)
+    else:
+        w_conv = model.get_weights_dwconv(use_cuda=False)
+
+    num_layer = len(w_conv)
+
+    qmin = -2.**(num_bits - 1.)
+    qmax = 2.**(num_bits - 1.) - 1.
+
+    for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+        min_val = np.amin(w_conv[i])
+        max_val = np.amax(w_conv[i])
+        scale = (max_val - min_val) / (qmax - qmin)
+        w_conv[i] = np.around(np.clip(w_conv[i] / scale, qmin, qmax))
+        w_conv[i] = scale * w_conv[i]
+
+    if opt.arch in hasDiffLayersArchs:
+        model.set_weights_conv(w_conv, use_cuda=False)
+    else:
+        model.set_weights_dwconv(w_conv, use_cuda=False)
 
 
 if __name__ == '__main__':

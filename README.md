@@ -1,4 +1,4 @@
-# PyTorch Image Classification TestBench
+# Memory Efficient Storing Scheme
 
 For my research..
 You can train or test MobileNet/MobileNetV2/ShuffleNet/ShuffleNetV2/ResNet on CIFAR10/CIFAR100/ImageNet.  
@@ -13,6 +13,17 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 - `requests` (for downloading pretrained checkpoint and imagenet dataset)
 
 ----------
+
+## Details of storing version
+
+- V1
+- V2
+  - V2
+  - V2a
+  - V2q (quantization ver)
+- V3
+  - V3
+  - V3a
 
 ## Number of (Depth-wise) Convolution kernels in Models
 
@@ -43,7 +54,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 ### ResNets - CIFAR - convolution
 
 | LayerNum |  ResNet20  | \| | LayerNum |  ResNet32  | \| | LayerNum |  ResNet44  | \| | LayerNum |  ResNet56  | \| | LayerNum |  ResNet110  |
-|:--------:|:----------:|----|:--------:|:----------:|----|:--------:|:----------:|----|:--------:|:----------:|----|:--------:|:-----------:|
+|:--------:|:----------:|:--:|:--------:|:----------:|:--:|:--------:|:----------:|:--:|:--------:|:----------:|:--:|:--------:|:-----------:|
 |  0      | (3X3X3)X16  | \| |  0      | (3X3X3)X16  | \| |  0      | (3X3X3)X16  | \| |  0      | (3X3X3)X16  | \| |  0       | (3X3X3)X16  |
 |  1~6    | (3X3X16)X16 | \| |  1~10   | (3X3X16)X16 | \| |  1~14   | (3X3X16)X16 | \| |  1~18   | (3X3X16)X16 | \| |  1~36    | (3X3X16)X16 |
 |  7      | (3X3X16)X32 | \| |  11     | (3X3X16)X32 | \| |  15     | (3X3X16)X32 | \| |  19     | (3X3X16)X32 | \| |  37      | (3X3X16)X32 |
@@ -180,7 +191,7 @@ $ rm -f checkpoint/*/*/ckpt_epoch_*.pth
 
 - Update other models
 - Make TinyImageNet dataloader
-- Update ImageNet pretrained model of ShuffleNet/ShuffleNetV2
+- Update ImageNet pretrained model of ShuffleNet/ShuffleNetV2/ResNets
 
 ----------
 

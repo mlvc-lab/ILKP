@@ -69,6 +69,10 @@ def config():
                              '(subvector size) on version 3 (v3) (default: 2)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
+    # parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
+    #                     help='use quantization?')
+    parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
+                        help='number of bits for quantization (Default: 8)')
 
     cfg = parser.parse_args()
     cfg.gpuids = list(map(int, cfg.gpuids))
