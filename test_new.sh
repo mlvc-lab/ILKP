@@ -8,7 +8,7 @@ do
         for ver in v2
         do
             python3 find_similar_kernel.py $data -a $model --ckpt ckpt_best.pth -v $ver --analysis
-            # python3 main.py $data -a $model -j 8 -C -g 0 -E --ckpt ckpt_best_$ver.pth -N
+            # python3 main.py $data -a $model -j 8 -C -g 0 -E -N --ckpt ckpt_best_$ver.pth
         done
     done
 done
