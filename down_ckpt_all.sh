@@ -5,14 +5,14 @@ for data in cifar10 cifar100
 do
     for model in mobilenet mobilenetv2 shufflenet shufflenetv2 resnet
     do
-        if [ "$arch" = "resnet" ]; then
+        if [ "$model" = "resnet" ]; then
             echo "resnet"
             for layer in 20 32 44 56 110
             do
                 python3 down_ckpt.py $data -a $model --layers $layer -o ckpt_best.pth
             done
         else
-            echo "$arch"
+            echo $model
             python3 down_ckpt.py $data -a $model -o ckpt_best.pth
         fi
     done
