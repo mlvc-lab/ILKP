@@ -68,15 +68,21 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                 model_file = dir_path / 'ckpt_new_{}_epoch_{}.pth'.format(
                     opt.version, epoch)
     else:
-        if opt.version == 'v3' or opt.version == 'v3a':
-            model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
-                n_retrain, opt.version, opt.bind_size, epoch)
-        elif opt.version == 'v2q':
-            model_file = dir_path / 'ckpt_rt{}_{}_q{}_epoch_{}.pth'.format(
-                n_retrain, opt.version, opt.quant_bit, epoch)
+        if opt.new:
+            if opt.version == 'v3' or opt.version == 'v3a':
+                model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
+                    n_retrain, opt.version, opt.bind_size, epoch)
+            elif opt.version == 'v2q':
+                model_file = dir_path / 'ckpt_rt{}_{}_q{}_epoch_{}.pth'.format(
+                    n_retrain, opt.version, opt.quant_bit, epoch)
+            else:
+                model_file = dir_path / 'ckpt_rt{}_{}_epoch_{}.pth'.format(
+                    n_retrain, opt.version, epoch)
         else:
-            model_file = dir_path / 'ckpt_rt{}_{}_epoch_{}.pth'.format(
-                n_retrain, opt.version, epoch)
+            if opt.quant:
+                model_file = dir_path / 'ckpt_rt{}_q{}_epoch_{}.pth'.format(
+                    n_retrain, opt.quant_bit, epoch)
+
     torch.save(state, model_file)
 
     if is_best:
@@ -94,15 +100,20 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                     shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_best.pth'.format(
                         opt.version))
         else:
-            if opt.version == 'v3' or opt.version == 'v3a':
-                shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
-                    n_retrain, opt.version, opt.bind_size))
-            elif opt.version == 'v2q':
-                shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_q{}_best.pth'.format(
-                    n_retrain, opt.version, opt.bind_size))
+            if opt.new:
+                if opt.version == 'v3' or opt.version == 'v3a':
+                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
+                        n_retrain, opt.version, opt.bind_size))
+                elif opt.version == 'v2q':
+                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_q{}_best.pth'.format(
+                        n_retrain, opt.version, opt.quant_bit))
+                else:
+                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_best.pth'.format(
+                        n_retrain, opt.version))
             else:
-                shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_best.pth'.format(
-                    n_retrain, opt.version))
+                if opt.quant:
+                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_q{}_best.pth'.format(
+                        n_retrain, opt.quant_bit))
 
 
 def save_summary(summary, opt, n_retrain):
@@ -111,26 +122,35 @@ def save_summary(summary, opt, n_retrain):
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if opt.retrain:
-        if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
-            if opt.version == 'v3' or opt.version == 'v3a':
-                file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
-                    opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
-            elif opt.version == 'v2q':
-                file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
-                    opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.quant_bit)
+        if opt.new:
+            if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
+                if opt.version == 'v3' or opt.version == 'v3a':
+                    file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
+                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
+                elif opt.version == 'v2q':
+                    file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
+                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.quant_bit)
+                else:
+                    file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
+                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version)
             else:
-                file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
-                    opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version)
+                if opt.version == 'v3' or opt.version == 'v3a':
+                    file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
+                        opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
+                elif opt.version == 'v2q':
+                    file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
+                        opt.arch, opt.dataset, n_retrain, opt.version, opt.quant_bit)
+                else:
+                    file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
+                        opt.arch, opt.dataset, n_retrain, opt.version)
         else:
-            if opt.version == 'v3' or opt.version == 'v3a':
-                file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
-                    opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
-            elif opt.version == 'v2q':
-                file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
-                    opt.arch, opt.dataset, n_retrain, opt.version, opt.quant_bit)
-            else:
-                file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
-                    opt.arch, opt.dataset, n_retrain, opt.version)
+            if opt.quant:
+                if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
+                    file_summ = dir_path / '{}_{}_rt{}_q{}.csv'.format(
+                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.quant_bit)
+                else:
+                    file_summ = dir_path / '{}_{}_rt{}_q{}.csv'.format(
+                        opt.arch, opt.dataset, n_retrain, opt.quant_bit)
     else:
         if opt.new:
             if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:

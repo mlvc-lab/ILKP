@@ -16,14 +16,14 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 
 ## Details of storing version
 
-- V1
-- V2
-  - V2
-  - V2a
-  - V2q (quantization ver)
-- V3
-  - V3
-  - V3a
+- v1
+- v2
+  - v2
+  - v2a
+  - v2q (quantization ver)
+- v3
+  - v3
+  - v3a
 
 ## Number of (Depth-wise) Convolution kernels in Models
 

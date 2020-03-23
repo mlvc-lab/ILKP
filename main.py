@@ -124,17 +124,19 @@ def main():
             print('==> Loading Checkpoint \'{}\''.format(opt.ckpt))
             checkpoint = load_model(model, ckpt_file,
                                     main_gpu=opt.gpuids[0], use_cuda=opt.cuda)
-            version = checkpoint['version']
-            if opt.version != version:
-                print('version argument is different with saved checkpoint version!')
-                exit()
             try:
                 n_retrain = checkpoint['n_retrain'] + 1
             except:
                 n_retrain = 1
 
-            print('===> Change indices to weights..')
-            idxtoweight(model, checkpoint['idx'], version)
+            if not opt.quant:
+                version = checkpoint['version']
+                if opt.version != version:
+                    print('version argument is different with saved checkpoint version!')
+                    exit()
+
+                print('===> Change indices to weights..')
+                idxtoweight(model, checkpoint['idx'], version)
 
             print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
                 opt.ckpt, checkpoint['epoch']))
@@ -150,20 +152,29 @@ def main():
     for epoch in range(start_epoch, opt.epochs):
         adjust_learning_rate(optimizer, epoch, opt.lr)
         if opt.retrain:
-            if opt.arch in hasDiffLayersArchs:
-                if version == 'v2q':
-                    print('\n==> {}/{} {}-th {}bit retraining'.format(
-                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.quant_bit))
+            if opt.new:
+                if opt.arch in hasDiffLayersArchs:
+                    if version == 'v2q':
+                        print('\n==> {}/{} {}-th {}bit retraining'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.quant_bit))
+                    else:
+                        print('\n==> {}/{} {}-th retraining'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain))
                 else:
-                    print('\n==> {}/{} {}-th retraining'.format(
-                        opt.arch+str(opt.layers), opt.dataset, n_retrain))
+                    if version == 'v2q':
+                        print('\n==> {}/{} {}-th {}bit retraining'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.quant_bit))
+                    else:
+                        print('\n==> {}/{} {}-th retraining'.format(
+                            opt.arch, opt.dataset, n_retrain))
             else:
-                if version == 'v2q':
-                    print('\n==> {}/{} {}-th {}bit retraining'.format(
-                        opt.arch, opt.dataset, n_retrain, opt.quant_bit))
-                else:
-                    print('\n==> {}/{} {}-th retraining'.format(
-                        opt.arch, opt.dataset, n_retrain))
+                if opt.quant:
+                    if opt.arch in hasDiffLayersArchs:
+                        print('\n==> {}/{} {}-th {}bit retraining'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.quant_bit))
+                    else:
+                        print('\n==> {}/{} {}-th {}bit retraining'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.quant_bit))
             print('==> Epoch: {}, lr = {}'.format(
                 epoch, optimizer.param_groups[0]["lr"]))
             # train for one epoch
@@ -176,13 +187,18 @@ def main():
             train_time += elapsed_time
             print('====> {:.2f} seconds to train this epoch\n'.format(
                 elapsed_time))
-            if version == 'v2q':
-                print('===> Quantization...')
-                quantize(model, opt.quant_bit)
-            # every 5 epochs
-            if (epoch+1) % 5 == 0:
-                print('===> Change kernels using {}\n'.format(version))
-                idx = find_similar_kernel_n_change(model, version)
+            if opt.new:
+                if version == 'v2q':
+                    print('==> {}bit Quantization...'.format(opt.quant_bit))
+                    quantize(model, opt.quant_bit)
+                # every 5 epochs
+                if (epoch+1) % 5 == 0:
+                    print('===> Change kernels using {}'.format(version))
+                    idx = find_similar_kernel_n_change(model, version)
+            else:
+                if opt.quant:
+                    print('==> {}bit Quantization...'.format(opt.quant_bit))
+                    quantize(model, opt.quant_bit)
         else:
             if not opt.new:
                 if opt.arch in hasDiffLayersArchs:
@@ -227,12 +243,12 @@ def main():
             print('====> {:.2f} seconds to train this epoch\n'.format(
                 elapsed_time))
             if opt.new:
-                if version == 'v2q':
+                if opt.version == 'v2q':
                     print('===> Quantization...')
                     quantize(model, opt.quant_bit)
                 # every 5 epochs
                 if (epoch+1) % 5 == 0:
-                    print('===> Change kernels using {}\n'.format(opt.version))
+                    print('===> Change kernels using {}'.format(opt.version))
                     idx = find_similar_kernel_n_change(model, opt.version)
 
         # evaluate on validation set
@@ -246,17 +262,31 @@ def main():
 
         # remember best Acc@1 and save checkpoint and summary csv file
         if opt.retrain:
-            # every 5 epochs
-            if (epoch+1) % 5 == 0:
+            if opt.new:
+                # every 5 epochs
+                if (epoch+1) % 5 == 0:
+                    is_best = acc1_valid > best_acc1
+                    best_acc1 = max(acc1_valid, best_acc1)
+                    state = {'epoch': epoch + 1,
+                            'model': model.state_dict(),
+                            'optimizer': optimizer.state_dict(),
+                            'n_retrain': n_retrain,
+                            'new': True,
+                            'version': version,
+                            'idx': idx}
+                    summary = [epoch,
+                            str(acc1_train)[7:-18], str(acc5_train)[7:-18],
+                            str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]
+                    save_model(state, epoch, is_best, opt, n_retrain)
+                    save_summary(summary, opt, n_retrain)
+            else:
                 is_best = acc1_valid > best_acc1
                 best_acc1 = max(acc1_valid, best_acc1)
                 state = {'epoch': epoch + 1,
                          'model': model.state_dict(),
                          'optimizer': optimizer.state_dict(),
                          'n_retrain': n_retrain,
-                         'new': True,
-                         'version': version,
-                         'idx': idx}
+                         'new': False}
                 summary = [epoch,
                            str(acc1_train)[7:-18], str(acc5_train)[7:-18],
                            str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]

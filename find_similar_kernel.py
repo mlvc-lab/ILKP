@@ -19,7 +19,7 @@ model_names = sorted(name for name in models.__dict__
 
 
 def config():
-    parser = argparse.ArgumentParser(description='PyTorch TestBench')
+    parser = argparse.ArgumentParser(description='Find similar kernel')
     parser.add_argument('dataset', metavar='DATA', default='cifar10',
                         choices=dataset_names,
                         help='dataset: ' +
@@ -38,10 +38,9 @@ def config():
     parser.add_argument('--groups', default=2, type=int, metavar='N',
                         help='number of groups for ShuffleNet (default: 2)')
     parser.add_argument('--ckpt', default='', type=str, metavar='PATH',
-                        help='Path of checkpoint for resuming/testing '
-                             'or retraining model (Default: none)')
-    parser.add_argument('-v', '--version', default='v1', type=str, metavar='VER',
-                        dest='version', help='find kernel version number (default: v1)')
+                        help='Path of checkpoint (Default: none)')
+    parser.add_argument('-v', '--version', default='', type=str, metavar='VER',
+                        dest='version', help='find kernel version number (default: none)')
     parser.add_argument('-d', '--bind-size', default=2, type=int, metavar='N',
                         dest='bind_size',
                         help='the number of binding channels in convolution '

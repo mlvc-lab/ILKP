@@ -61,16 +61,17 @@ def config():
     parser.add_argument('--datapath', default='../data', type=str, metavar='PATH',
                         help='where you want to load/save your dataset? (default: ../data)')
     # for new methods
-    parser.add_argument('-v', '--version', default='v1', type=str, metavar='VER',
-                        dest='version', help='find kernel version number (default: v1)')
+    parser.add_argument('-v', '--version', default='', type=str, metavar='VER',
+                        dest='version', help='find kernel version number (default: none)')
     parser.add_argument('-d', '--bind-size', default=2, type=int, metavar='N',
                         dest='bind_size',
                         help='the number of binding channels in convolution '
                              '(subvector size) on version 3 (v3) (default: 2)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
-    # parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
-    #                     help='use quantization?')
+    # for quantization
+    parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
+                        help='use quantization?')
     parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
 
