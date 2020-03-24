@@ -10,14 +10,14 @@ do
                 # for layer in 20 32 44 56 110
                 for layer in 20 32 44
                 do
-                    python3 main.py $data -a $model --layer $layer -j 8 -C -g 0 1 2 3 -b 256 -N -v v2q --qb $qb
+                    python3 main.py $data -a $model --layer $layer -j 2 -C -g 0 1 2 3 -b 256 -N -v v2q --qb $qb
                     rm -f checkpoint/*/*/ckpt_new_v*_q*_epoch_*.pth
-                    python3 main.py $data -a $model --layer $layer -j 8 -C -g 0 -E -N --ckpt "ckpt_new_v2q_q"$qb"_best.pth" --qb $qb
+                    python3 main.py $data -a $model --layer $layer -j 2 -C -g 0 -E -N --ckpt "ckpt_new_v2q_q"$qb"_best.pth" --qb $qb
                 done
             else
-                python3 main.py $data -a $model -j 8 -C -g 0 1 2 3 -b 256 -N -v v2q --qb $qb
+                python3 main.py $data -a $model -j 2 -C -g 0 1 2 3 -b 256 -N -v v2q --qb $qb
                 rm -f checkpoint/*/*/ckpt_new_v*_q*_epoch_*.pth
-                python3 main.py $data -a $model -j 8 -C -g 0 -E -N --ckpt "ckpt_new_v2q_q"$qb"_best.pth" --qb $qb
+                python3 main.py $data -a $model -j 2 -C -g 0 -E -N --ckpt "ckpt_new_v2q_q"$qb"_best.pth" --qb $qb
             fi
         done
     done

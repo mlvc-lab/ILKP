@@ -11,11 +11,11 @@ do
                 for layer in 20 32 44
                 do
                     python3 find_similar_kernel.py $data -a $model --layer $layer --ckpt ckpt_best.pth -v v2q --qb $qb
-                    python3 main.py $data -a $model --layers $layer -j 8 -C -g 0 -E -N --ckpt ckpt_best_v2q_q$qb.pth --qb $qb
+                    python3 main.py $data -a $model --layers $layer -j 2 -C -g 0 -E -N --ckpt ckpt_best_v2q_q$qb.pth --qb $qb
                 done
             else
                 python3 find_similar_kernel.py $data -a $model --ckpt ckpt_best.pth -v v2q --qb $qb
-                python3 main.py $data -a $model -j 8 -C -g 0 -E -N --ckpt ckpt_best_v2q_q$qb.pth --qb $qb
+                python3 main.py $data -a $model -j 2 -C -g 0 -E -N --ckpt ckpt_best_v2q_q$qb.pth --qb $qb
             fi
         done
     done
