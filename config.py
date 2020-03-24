@@ -43,8 +43,8 @@ def config():
                              'uniformly at each layer (default: 1.0)')
     parser.add_argument('--groups', default=2, type=int, metavar='N',
                         help='number of groups for ShuffleNet (default: 2)')
-    parser.add_argument('-p', '--print-freq', default=50, type=int,
-                        metavar='N', help='print frequency (default: 50)')
+    parser.add_argument('-p', '--print-freq', default=100, type=int,
+                        metavar='N', help='print frequency (default: 100)')
     parser.add_argument('--ckpt', default='', type=str, metavar='PATH',
                         help='Path of checkpoint for resuming/testing '
                              'or retraining model (Default: none)')

@@ -181,7 +181,7 @@ def save_summary(summary, opt, n_retrain):
                 file_summ = dir_path / '{}_{}.csv'.format(
                     opt.arch, opt.dataset)
 
-    if opt.retrain or opt.new:
+    if opt.new:
         if summary[0] == 4:
             with open(file_summ, 'w', newline='') as csv_out:
                 writer = csv.writer(csv_out)
