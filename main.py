@@ -191,8 +191,8 @@ def main():
                 if version == 'v2q':
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
                     quantize(model, opt.quant_bit)
-                # every 5 epochs
-                if (epoch+1) % 5 == 0:
+                # every 'opt.save_epoch' epochs
+                if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(version))
                     idx = find_similar_kernel_n_change(model, version)
             else:
@@ -247,7 +247,7 @@ def main():
                     print('===> Quantization...')
                     quantize(model, opt.quant_bit)
                 # every 5 epochs
-                if (epoch+1) % 5 == 0:
+                if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
                     idx = find_similar_kernel_n_change(model, opt.version)
 
@@ -263,8 +263,8 @@ def main():
         # remember best Acc@1 and save checkpoint and summary csv file
         if opt.retrain:
             if opt.new:
-                # every 5 epochs
-                if (epoch+1) % 5 == 0:
+                # every 'opt.save_epoch' epochs
+                if (epoch+1) % opt.save_epoch == 0:
                     is_best = acc1_valid > best_acc1
                     best_acc1 = max(acc1_valid, best_acc1)
                     state = {'epoch': epoch + 1,
@@ -307,8 +307,8 @@ def main():
                 save_model(state, epoch, is_best, opt, n_retrain)
                 save_summary(summary, opt, n_retrain)
             else:
-                # every 5 epochs
-                if (epoch+1) % 5 == 0:
+                # every 'opt.save_epoch' epochs
+                if (epoch+1) % opt.save_epoch == 0:
                     is_best = acc1_valid > best_acc1
                     best_acc1 = max(acc1_valid, best_acc1)
                     state = {'epoch': epoch + 1,
@@ -366,7 +366,29 @@ def train(train_loader, **kwargs):
 
         # compute output
         output = model(input)
-        loss = criterion(output, target)
+        if opt.nuc_loss:
+            d = opt.bind_size
+            if opt.arch in hasDiffLayersArchs:
+                try:
+                    first_conv = model.module.get_layer_conv(0).weight
+                except:
+                    first_conv = model.get_layer_conv(0).weight
+            else:
+                try:
+                    first_conv = model.module.get_layer_dwconv(0).weight
+                except:
+                    first_conv = model.get_layer_dwconv(0).weight
+            first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
+            for idx in range(0, first_conv.size()[0], d):
+                sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
+                if idx == 0:
+                    first_conv_all = sub_tensor
+                else:
+                    first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
+            inv_nuc_norm_regularity = opt.nls / torch.norm(first_conv_all, p='nuc')
+            loss = criterion(output, target) + inv_nuc_norm_regularity
+        else:
+            loss = criterion(output, target)
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -539,40 +561,77 @@ def find_similar_kernel_n_change(model, version):
                         idx.append(ref_idx)
                 idx_all.append(idx)
     else:
-        for i in tqdm(range(start_layer, len(w_dwconv)), ncols=80, unit='layer'):
-            idx = []
-            for j in range(len(w_dwconv[i])):
-                min_diff = math.inf
-                ref_idx = 0
-                if version == 'v1':
-                    for k in range(len(w_dwconv[ref_layer])):
-                        diff = np.sum(np.absolute(w_dwconv[ref_layer][k][0] - w_dwconv[i][j][0]))
-                        if min_diff > diff:
-                            min_diff = diff
-                            ref_idx = k
-                elif version in ['v2', 'v2a', 'v2q']:
-                    for k in range(len(w_dwconv[ref_layer])):
-                        # find alpha, beta using least squared method every kernel in reference layer
-                        mean_cur = np.mean(w_dwconv[i][j][0])
-                        mean_ref = np.mean(w_dwconv[ref_layer][k][0])
+        if version == 'v3' or version == 'v3a':
+            d = opt.bind_size
+            concat_kernels_ref = []
+            for j in range(len(w_dwconv[ref_layer])):
+                for k in range(len(w_dwconv[ref_layer][j])):
+                    concat_kernels_ref.append(w_dwconv[ref_layer][j][k])
+            num_subvec_ref = len(concat_kernels_ref) // d
+            for i in tqdm(range(start_layer, len(w_dwconv)), ncols=80, unit='layer'):
+                idx = []
+                num_subvec_cur = (len(w_dwconv[i])*len(w_dwconv[i][0])) // d
+                for j in range(num_subvec_cur):
+                    min_diff = math.inf
+                    ref_idx = 0
+                    for u in range(num_subvec_ref):
+                        mean_cur = np.mean(w_dwconv[i][d*j:d*j+d][0])
+                        mean_ref = np.mean(concat_kernels_ref[d*u:d*(u+1)])
                         alpha_numer = 0.0
                         alpha_denom = 0.0
-                        for u in range(3):
-                            for v in range(3):
-                                alpha_numer += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
-                                                (w_dwconv[i][j][0][u][v] - mean_cur))
-                                alpha_denom += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
-                                                (w_dwconv[ref_layer][k][0][u][v] - mean_ref))
+                        for v in range(d):
+                            for row in range(len(concat_kernels_ref[d*u+v])):
+                                for col in range(len(concat_kernels_ref[d*u+v][row])):
+                                    alpha_numer += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
+                                                    (w_dwconv[i][d*j+v][0][row][col] - mean_cur))
+                                    alpha_denom += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
+                                                    (concat_kernels_ref[d*u+v][row][col] - mean_ref))
                         alpha = alpha_numer / alpha_denom
                         beta = mean_cur - alpha*mean_ref
-                        diff = np.sum(np.absolute(alpha*w_dwconv[ref_layer][k][0]+beta - w_dwconv[i][j][0]))
+                        diff = 0.0
+                        for v in range(d):
+                            tmp_diff = alpha*concat_kernels_ref[d*u+v]+beta - w_dwconv[i][d*j+v][0]
+                            diff += np.sum(np.absolute(tmp_diff))
                         if min_diff > diff:
                             min_diff = diff
-                            ref_idx = (k, alpha, beta)
-                elif version == 'v3' or version == 'v3a':
-                    pass
-                idx.append(ref_idx)
-            idx_all.append(idx)
+                            ref_idx = (u, alpha, beta)
+                    idx.append(ref_idx)
+                idx_all.append(idx)
+        else:
+            for i in tqdm(range(start_layer, len(w_dwconv)), ncols=80, unit='layer'):
+                idx = []
+                for j in range(len(w_dwconv[i])):
+                    min_diff = math.inf
+                    ref_idx = 0
+                    if version == 'v1':
+                        for k in range(len(w_dwconv[ref_layer])):
+                            diff = np.sum(np.absolute(w_dwconv[ref_layer][k][0] - w_dwconv[i][j][0]))
+                            if min_diff > diff:
+                                min_diff = diff
+                                ref_idx = k
+                    elif version in ['v2', 'v2a', 'v2q']:
+                        for k in range(len(w_dwconv[ref_layer])):
+                            # find alpha, beta using least squared method every kernel in reference layer
+                            mean_cur = np.mean(w_dwconv[i][j][0])
+                            mean_ref = np.mean(w_dwconv[ref_layer][k][0])
+                            alpha_numer = 0.0
+                            alpha_denom = 0.0
+                            for u in range(3):
+                                for v in range(3):
+                                    alpha_numer += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
+                                                    (w_dwconv[i][j][0][u][v] - mean_cur))
+                                    alpha_denom += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
+                                                    (w_dwconv[ref_layer][k][0][u][v] - mean_ref))
+                            alpha = alpha_numer / alpha_denom
+                            beta = mean_cur - alpha*mean_ref
+                            diff = np.sum(np.absolute(alpha*w_dwconv[ref_layer][k][0]+beta - w_dwconv[i][j][0]))
+                            if min_diff > diff:
+                                min_diff = diff
+                                ref_idx = (k, alpha, beta)
+                    elif version == 'v3' or version == 'v3a':
+                        pass
+                    idx.append(ref_idx)
+                idx_all.append(idx)
 
     if opt.arch in hasDiffLayersArchs:
         if version == 'v1':
@@ -622,7 +681,18 @@ def find_similar_kernel_n_change(model, version):
                     k, alpha, beta = idx_all[i-start_layer][j]
                     w_dwconv[i][j] = alpha * w_dwconv[ref_layer][k] + beta
         elif version == 'v3' or version == 'v3a':
-            pass
+            d = opt.bind_size
+            concat_kernels_ref = []
+            for j in range(len(w_dwconv[ref_layer])):
+                for k in range(len(w_dwconv[ref_layer][j])):
+                    concat_kernels_ref.append(w_dwconv[ref_layer][j][k])
+            for i in range(start_layer, len(w_dwconv)):
+                num_subvec_cur = (len(w_dwconv[i])*len(w_dwconv[i][0])) // d
+                for j in range(num_subvec_cur):
+                    ref_idx, alpha, beta = idx_all[i-start_layer][j]
+                    for v in range(d):
+                        w_dwconv[i][d*j+v][0] =\
+                            alpha * concat_kernels_ref[ref_idx+v] + beta
         else:
             print('Wrong version! program exit...')
             exit()
@@ -721,7 +791,18 @@ def idxtoweight(model, indices, version):
                     k, alpha, beta = indices[i-start_layer][j]
                     w_dwconv[i][j] = alpha * w_dwconv[ref_layer][k] + beta
         elif version == 'v3' or version == 'v3a':
-            pass
+            d = opt.bind_size
+            concat_kernels_ref = []
+            for j in range(len(w_dwconv[ref_layer])):
+                for k in range(len(w_dwconv[ref_layer][j])):
+                    concat_kernels_ref.append(w_dwconv[ref_layer][j][k])
+            for i in range(start_layer, len(w_dwconv)):
+                num_subvec_cur = (len(w_dwconv[i])*len(w_dwconv[i][0])) // d
+                for j in range(num_subvec_cur):
+                    ref_idx, alpha, beta = indices[i-start_layer][j]
+                    for v in range(d):
+                        w_dwconv[i][d*j+v][0] =\
+                            alpha * concat_kernels_ref[ref_idx+v] + beta
         else:
             print('Wrong version! program exit...')
             exit()

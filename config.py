@@ -69,10 +69,17 @@ def config():
                              '(subvector size) on version 3 (v3) (default: 2)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
+    parser.add_argument('-s', '--save-epoch', default=5, type=int, metavar='N',
+                        dest='save_epoch',
+                        help='number of epochs to save checkpoint and to apply new method')
+    parser.add_argument('--nl', '--nuc-loss', dest='nuc_loss', action='store_true',
+                        help='nuc loss?')
+    parser.add_argument('--nls', '--nl-scale', dest='nls', default=1.0, type=float,
+                        help='scale factor of nuc loss')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')
-    parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
+    parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
 
     cfg = parser.parse_args()

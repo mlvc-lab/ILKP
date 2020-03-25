@@ -59,8 +59,12 @@ def save_model(state, epoch, is_best, opt, n_retrain):
             model_file = dir_path / 'ckpt_epoch_{}.pth'.format(epoch)
         else:
             if opt.version == 'v3' or opt.version == 'v3a':
-                model_file = dir_path / 'ckpt_new_{}_d{}_epoch_{}.pth'.format(
-                    opt.version, opt.bind_size, epoch)
+                if not opt.nuc_loss:
+                    model_file = dir_path / 'ckpt_new_{}_d{}_epoch_{}.pth'.format(
+                        opt.version, opt.bind_size, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_new_{}_nl{}_s{}_d{}_epoch_{}.pth'.format(
+                        opt.version, opt.nls, opt.save_epoch, opt.bind_size, epoch)
             elif opt.version == 'v2q':
                 model_file = dir_path / 'ckpt_new_{}_q{}_epoch_{}.pth'.format(
                     opt.version, opt.quant_bit, epoch)
@@ -70,8 +74,12 @@ def save_model(state, epoch, is_best, opt, n_retrain):
     else:
         if opt.new:
             if opt.version == 'v3' or opt.version == 'v3a':
-                model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
-                    n_retrain, opt.version, opt.bind_size, epoch)
+                if not opt.nuc_loss:
+                    model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.bind_size, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_rt{}_{}_nl{}_s{}_d{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size, epoch)
             elif opt.version == 'v2q':
                 model_file = dir_path / 'ckpt_rt{}_{}_q{}_epoch_{}.pth'.format(
                     n_retrain, opt.version, opt.quant_bit, epoch)
@@ -91,8 +99,12 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                 shutil.copyfile(model_file, dir_path / 'ckpt_best.pth')
             else:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_d{}_best.pth'.format(
-                        opt.version, opt.bind_size))
+                    if not opt.nuc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_d{}_best.pth'.format(
+                            opt.version, opt.bind_size))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_nl{}_s{}_d{}_best.pth'.format(
+                            opt.version, opt.nls, opt.save_epoch, opt.bind_size))
                 elif opt.version == 'v2q':
                     shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_q{}_best.pth'.format(
                         opt.version, opt.quant_bit))
@@ -102,8 +114,12 @@ def save_model(state, epoch, is_best, opt, n_retrain):
         else:
             if opt.new:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
-                        n_retrain, opt.version, opt.bind_size))
+                    if not opt.nuc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
+                            n_retrain, opt.version, opt.bind_size))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_nl{}_s{}_d{}_best.pth'.format(
+                            n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size))
                 elif opt.version == 'v2q':
                     shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_q{}_best.pth'.format(
                         n_retrain, opt.version, opt.quant_bit))
@@ -125,8 +141,12 @@ def save_summary(summary, opt, n_retrain):
         if opt.new:
             if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
-                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
+                    if not opt.nuc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_nl{}_s{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
                 elif opt.version == 'v2q':
                     file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
                         opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.quant_bit)
@@ -135,8 +155,12 @@ def save_summary(summary, opt, n_retrain):
                         opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version)
             else:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
-                        opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
+                    if not opt.nuc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_nl{}_s{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
                 elif opt.version == 'v2q':
                     file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
                         opt.arch, opt.dataset, n_retrain, opt.version, opt.quant_bit)
@@ -155,8 +179,12 @@ def save_summary(summary, opt, n_retrain):
         if opt.new:
             if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
-                        opt.arch+str(opt.layers), opt.dataset, opt.version, opt.bind_size)
+                    if not opt.nuc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}_nl{}_s{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
                 elif opt.version == 'v2q':
                     file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
                         opt.arch+str(opt.layers), opt.dataset, opt.version, opt.quant_bit)
@@ -165,8 +193,12 @@ def save_summary(summary, opt, n_retrain):
                         opt.arch+str(opt.layers), opt.dataset, opt.version)
             else:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
-                        opt.arch, opt.dataset, opt.version, opt.bind_size)
+                    if not opt.nuc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}_nl{}_s{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
                 elif opt.version == 'v2q':
                     file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
                         opt.arch, opt.dataset, opt.version, opt.quant_bit)
@@ -181,42 +213,27 @@ def save_summary(summary, opt, n_retrain):
                 file_summ = dir_path / '{}_{}.csv'.format(
                     opt.arch, opt.dataset)
 
+    first_save_epoch = 0
     if opt.new:
-        if summary[0] == 4:
-            with open(file_summ, 'w', newline='') as csv_out:
-                writer = csv.writer(csv_out)
-                header_list = ['Epoch', 'Acc@1_train', 'Acc@5_train', 'Acc@1_valid', 'Acc@5_valid']
-                writer.writerow(header_list)
-                writer.writerow(summary)
-        else:
-            file_temp = dir_path / 'temp.csv'
-            shutil.copyfile(file_summ, file_temp)
-            with open(file_temp, 'r', newline='') as csv_in:
-                with open(file_summ, 'w', newline='') as csv_out:
-                    reader = csv.reader(csv_in)
-                    writer = csv.writer(csv_out)
-                    for row_list in reader:
-                        writer.writerow(row_list)
-                    writer.writerow(summary)
-            remove(file_temp)
+        first_save_epoch = opt.save_epoch - 1
+
+    if summary[0] == first_save_epoch:
+        with open(file_summ, 'w', newline='') as csv_out:
+            writer = csv.writer(csv_out)
+            header_list = ['Epoch', 'Acc@1_train', 'Acc@5_train', 'Acc@1_valid', 'Acc@5_valid']
+            writer.writerow(header_list)
+            writer.writerow(summary)
     else:
-        if summary[0] == 0:
+        file_temp = dir_path / 'temp.csv'
+        shutil.copyfile(file_summ, file_temp)
+        with open(file_temp, 'r', newline='') as csv_in:
             with open(file_summ, 'w', newline='') as csv_out:
+                reader = csv.reader(csv_in)
                 writer = csv.writer(csv_out)
-                header_list = ['Epoch', 'Acc@1_train', 'Acc@5_train', 'Acc@1_valid', 'Acc@5_valid']
-                writer.writerow(header_list)
+                for row_list in reader:
+                    writer.writerow(row_list)
                 writer.writerow(summary)
-        else:
-            file_temp = dir_path / 'temp.csv'
-            shutil.copyfile(file_summ, file_temp)
-            with open(file_temp, 'r', newline='') as csv_in:
-                with open(file_summ, 'w', newline='') as csv_out:
-                    reader = csv.reader(csv_in)
-                    writer = csv.writer(csv_out)
-                    for row_list in reader:
-                        writer.writerow(row_list)
-                    writer.writerow(summary)
-            remove(file_temp)
+        remove(file_temp)
 
 
 def save_eval(summary):

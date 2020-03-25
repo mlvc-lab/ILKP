@@ -109,9 +109,10 @@ $ ./down_ckpt_all.sh
 
 ```
 usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [-b N] [--lr LR]
-               [--momentum M] [--wd W] [--width-mult WM] [--groups N] [-p N]
-               [--ckpt PATH] [-r] [-e] [-C] [-g GPUIDS [GPUIDS ...]]
-               [--datapath PATH]
+               [--momentum M] [--wd W] [--layers N] [--width-mult WM]
+               [--groups N] [-p N] [--ckpt PATH] [-R] [-E] [-C] [-T]
+               [-g GPUIDS [GPUIDS ...]] [--datapath PATH] [-v VER] [-d N] [-N]
+               [--nl] [--nls NLS] [-Q] [--qb N]
                DATA
 
 positional arguments:
@@ -120,8 +121,9 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -a ARCH, --arch ARCH  model architecture: mobilenet | mobilenetv2 |
-                        shufflenet | shufflenetv2 (default: mobilenet)
+  -a ARCH, --arch ARCH  model architecture: mobilenet | mobilenetv2 | resnet |
+                        resnext | shufflenet | shufflenetv2 | wideresnet
+                        (default: mobilenet)
   -j N, --workers N     number of data loading workers (default: 8)
   --epochs N            number of total epochs to run (default: 200)
   -b N, --batch-size N  mini-batch size (default: 128), this is the total
@@ -132,19 +134,33 @@ optional arguments:
   --momentum M          momentum (default: 0.9)
   --wd W, --weight-decay W
                         weight decay (default: 5e-4)
+  --layers N            number of layers in VGG/ResNet/ResNeXt/WideResNet
+                        (default: 16)
   --width-mult WM       width multiplier to thin a network uniformly at each
                         layer (default: 1.0)
   --groups N            number of groups for ShuffleNet (default: 2)
-  -p N, --print-freq N  print frequency (default: 50)
+  -p N, --print-freq N  print frequency (default: 100)
   --ckpt PATH           Path of checkpoint for resuming/testing or retraining
                         model (Default: none)
   -R, --resume          Resume model?
   -E, --evaluate        Test model?
   -C, --cuda            Use cuda?
+  -T, --retrain         Retraining?
   -g GPUIDS [GPUIDS ...], --gpuids GPUIDS [GPUIDS ...]
                         GPU IDs for using (Default: 0)
   --datapath PATH       where you want to load/save your dataset? (default:
                         ../data)
+  -v VER, --version VER
+                        find kernel version number (default: none)
+  -d N, --bind-size N   the number of binding channels in convolution
+                        (subvector size) on version 3 (v3) (default: 2)
+  -N, --new             new method?
+  --nl, --nuc-loss      nuc loss?
+  --nls NLS, --nl-scale NLS
+                        scale factor of nuc loss
+  -Q, --quant           use quantization?
+  --qb N, --quant-bit N
+                        number of bits for quantization (Default: 8)
 ```
 
 ### Training

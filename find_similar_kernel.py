@@ -113,7 +113,7 @@ def find_kernel(model, ckpt):
     if opt.arch in hasDiffLayersArchs:
         w_conv = model.get_weights_conv(use_cuda=False)
     else:
-        w_dwconv = model.get_weights_dwconv(use_cuda=False)
+        w_conv = model.get_weights_dwconv(use_cuda=False)
 
     start_layer = 1
     ref_layer = 0
@@ -200,40 +200,75 @@ def find_kernel(model, ckpt):
                         idx.append(ref_idx)
                 idx_all.append(idx)
     else:
-        for i in range(start_layer, len(w_dwconv)):
-            idx = []
-            for j in tqdm(range(len(w_dwconv[i])), ncols=80, unit='filter'):
-                min_diff = math.inf
-                ref_idx = 0
-                if opt.version == 'v1':
-                    for k in range(len(w_dwconv[ref_layer])):
-                        diff = np.sum(np.absolute(w_dwconv[ref_layer][k][0] - w_dwconv[i][j][0]))
-                        if min_diff > diff:
-                            min_diff = diff
-                            ref_idx = k
-                elif opt.version in ['v2', 'v2a', 'v2q']:
-                    for k in range(len(w_dwconv[ref_layer])):
-                        # find alpha, beta using least squared method every kernel in reference layer
-                        mean_cur = np.mean(w_dwconv[i][j][0])
-                        mean_ref = np.mean(w_dwconv[ref_layer][k][0])
+        if opt.version == 'v3' or opt.version == 'v3a':
+            d = opt.bind_size
+            concat_kernels_ref = []
+            for j in range(len(w_conv[ref_layer])):
+                for k in range(len(w_conv[ref_layer][j])):
+                    concat_kernels_ref.append(w_conv[ref_layer][j][k])
+            num_subvec_ref = len(concat_kernels_ref) // d
+            for i in range(start_layer, len(w_conv)):
+                idx = []
+                num_subvec_cur = (len(w_conv[i])*len(w_conv[i][0])) // d
+                for j in tqdm(range(num_subvec_cur), ncols=80, unit='subvector'):
+                    min_diff = math.inf
+                    ref_idx = 0
+                    for u in range(num_subvec_ref):
+                        mean_cur = np.mean(w_conv[i][d*j:d*j+d][0])
+                        mean_ref = np.mean(concat_kernels_ref[d*u:d*(u+1)])
                         alpha_numer = 0.0
                         alpha_denom = 0.0
-                        for u in range(3):
-                            for v in range(3):
-                                alpha_numer += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
-                                                (w_dwconv[i][j][0][u][v] - mean_cur))
-                                alpha_denom += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
-                                                (w_dwconv[ref_layer][k][0][u][v] - mean_ref))
+                        for v in range(d):
+                            for row in range(len(concat_kernels_ref[d*u+v])):
+                                for col in range(len(concat_kernels_ref[d*u+v][row])):
+                                    alpha_numer += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
+                                                    (w_conv[i][d*j+v][0][row][col] - mean_cur))
+                                    alpha_denom += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
+                                                    (concat_kernels_ref[d*u+v][row][col] - mean_ref))
                         alpha = alpha_numer / alpha_denom
                         beta = mean_cur - alpha*mean_ref
-                        diff = np.sum(np.absolute(alpha*w_dwconv[ref_layer][k][0]+beta - w_dwconv[i][j][0]))
+                        diff = 0.0
+                        for v in range(d):
+                            tmp_diff = alpha*concat_kernels_ref[d*u+v]+beta - w_conv[i][d*j+v][0]
+                            diff += np.sum(np.absolute(tmp_diff))
                         if min_diff > diff:
                             min_diff = diff
-                            ref_idx = (k, alpha, beta)
-                elif opt.version == 'v3' or opt.version == 'v3a':
-                    pass
-                idx.append(ref_idx)
-            idx_all.append(idx)
+                            ref_idx = (u, alpha, beta)
+                    idx.append(ref_idx)
+                idx_all.append(idx)
+        else:
+            for i in range(start_layer, len(w_conv)):
+                idx = []
+                for j in tqdm(range(len(w_conv[i])), ncols=80, unit='filter'):
+                    min_diff = math.inf
+                    ref_idx = 0
+                    if opt.version == 'v1':
+                        for k in range(len(w_conv[ref_layer])):
+                            diff = np.sum(np.absolute(w_conv[ref_layer][k][0] - w_conv[i][j][0]))
+                            if min_diff > diff:
+                                min_diff = diff
+                                ref_idx = k
+                    elif opt.version in ['v2', 'v2a', 'v2q']:
+                        for k in range(len(w_conv[ref_layer])):
+                            # find alpha, beta using least squared method every kernel in reference layer
+                            mean_cur = np.mean(w_conv[i][j][0])
+                            mean_ref = np.mean(w_conv[ref_layer][k][0])
+                            alpha_numer = 0.0
+                            alpha_denom = 0.0
+                            for u in range(3):
+                                for v in range(3):
+                                    alpha_numer += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
+                                                    (w_conv[i][j][0][u][v] - mean_cur))
+                                    alpha_denom += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
+                                                    (w_conv[ref_layer][k][0][u][v] - mean_ref))
+                            alpha = alpha_numer / alpha_denom
+                            beta = mean_cur - alpha*mean_ref
+                            diff = np.sum(np.absolute(alpha*w_conv[ref_layer][k][0]+beta - w_conv[i][j][0]))
+                            if min_diff > diff:
+                                min_diff = diff
+                                ref_idx = (k, alpha, beta)
+                    idx.append(ref_idx)
+                idx_all.append(idx)
 
     ckpt['idx'] = idx_all
     ckpt['version'] = opt.version
@@ -264,39 +299,39 @@ def weight_analysis(model, ckpt):
     dir_weights = pathlib.Path('weights')
     dir_weights.mkdir(parents=True, exist_ok=True)
 
-    w_dwconv = model.get_weights_dwconv(use_cuda=False)
+    w_conv = model.get_weights_dwconv(use_cuda=False)
     start_layer = 1
     ref_layer = 0
     idx_all = []
-    for i in range(start_layer, len(w_dwconv)):
+    for i in range(start_layer, len(w_conv)):
         idx = []
-        for j in tqdm(range(len(w_dwconv[i])), ncols=80, unit='filter'):
+        for j in tqdm(range(len(w_conv[i])), ncols=80, unit='filter'):
             min_diff = math.inf
             ref_idx = 0
-            for k in range(len(w_dwconv[ref_layer])):
+            for k in range(len(w_conv[ref_layer])):
                 # find alpha, beta using least squared method every kernel in reference layer
-                mean_cur = np.mean(w_dwconv[i][j][0])
-                mean_ref = np.mean(w_dwconv[ref_layer][k][0])
+                mean_cur = np.mean(w_conv[i][j][0])
+                mean_ref = np.mean(w_conv[ref_layer][k][0])
                 alpha_numer = 0.0
                 alpha_denom = 0.0
                 for u in range(3):
                     for v in range(3):
-                        alpha_numer += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
-                                        (w_dwconv[i][j][0][u][v] - mean_cur))
-                        alpha_denom += ((w_dwconv[ref_layer][k][0][u][v] - mean_ref) *
-                                        (w_dwconv[ref_layer][k][0][u][v] - mean_ref))
+                        alpha_numer += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
+                                        (w_conv[i][j][0][u][v] - mean_cur))
+                        alpha_denom += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
+                                        (w_conv[ref_layer][k][0][u][v] - mean_ref))
                 alpha = alpha_numer / alpha_denom
                 beta = mean_cur - alpha*mean_ref
-                diff = np.sum(np.absolute(alpha*w_dwconv[ref_layer][k][0]+beta - w_dwconv[i][j][0]))
+                diff = np.sum(np.absolute(alpha*w_conv[ref_layer][k][0]+beta - w_conv[i][j][0]))
                 if min_diff > diff:
                     min_diff = diff
                     ref_idx = k
             idx.append(ref_idx)
         idx_all.append(idx)
-    layerNumList = list(range(start_layer, len(w_dwconv)))
+    layerNumList = list(range(start_layer, len(w_conv)))
     randLayerIdx = random.sample(layerNumList,3)
     for i in randLayerIdx:
-        kernelNumList = list(range(len(w_dwconv[i])))
+        kernelNumList = list(range(len(w_conv[i])))
         randKernelIdx = random.sample(kernelNumList,3)
         for j in randKernelIdx:
             k = idx_all[i-start_layer][j]
@@ -304,8 +339,8 @@ def weight_analysis(model, ckpt):
             weights_ref = []
             for u in range(3):
                 for v in range(3):
-                    weights_cur.append(w_dwconv[i][j][0][u][v])
-                    weights_ref.append(w_dwconv[ref_layer][k][0][u][v])
+                    weights_cur.append(w_conv[i][j][0][u][v])
+                    weights_ref.append(w_conv[ref_layer][k][0][u][v])
             plt.figure(figsize=(8,6), dpi=300)
             plt.title('weights')
             plt.xlabel('current kernel K_{},{}'.format(i,j))
