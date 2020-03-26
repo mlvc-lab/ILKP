@@ -112,7 +112,7 @@ usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [-b N] [--lr LR]
                [--momentum M] [--wd W] [--layers N] [--width-mult WM]
                [--groups N] [-p N] [--ckpt PATH] [-R] [-E] [-C] [-T]
                [-g GPUIDS [GPUIDS ...]] [--datapath PATH] [-v VER] [-d N] [-N]
-               [--nl] [--nls NLS] [-Q] [--qb N]
+               [-s N] [--nl] [--nls NLS] [--pl] [--pls PLS] [-Q] [--qb N]
                DATA
 
 positional arguments:
@@ -155,9 +155,14 @@ optional arguments:
   -d N, --bind-size N   the number of binding channels in convolution
                         (subvector size) on version 3 (v3) (default: 2)
   -N, --new             new method?
-  --nl, --nuc-loss      nuc loss?
+  -s N, --save-epoch N  number of epochs to save checkpoint and to apply new
+                        method
+  --nl, --nuc-loss      nuclear norm loss?
   --nls NLS, --nl-scale NLS
-                        scale factor of nuc loss
+                        scale factor of nuc_loss
+  --pl, --pcc-loss      pearson correlation coefficient loss?
+  --pls PLS, --pl-scale PLS
+                        scale factor of pcc_loss
   -Q, --quant           use quantization?
   --qb N, --quant-bit N
                         number of bits for quantization (Default: 8)

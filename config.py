@@ -73,9 +73,13 @@ def config():
                         dest='save_epoch',
                         help='number of epochs to save checkpoint and to apply new method')
     parser.add_argument('--nl', '--nuc-loss', dest='nuc_loss', action='store_true',
-                        help='nuc loss?')
+                        help='nuclear norm loss?')
     parser.add_argument('--nls', '--nl-scale', dest='nls', default=1.0, type=float,
-                        help='scale factor of nuc loss')
+                        help='scale factor of nuc_loss')
+    parser.add_argument('--pl', '--pcc-loss', dest='pcc_loss', action='store_true',
+                        help='pearson correlation coefficient loss?')
+    parser.add_argument('--pls', '--pl-scale', dest='pls', default=1.0, type=float,
+                        help='scale factor of pcc_loss')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')

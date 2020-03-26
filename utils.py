@@ -59,33 +59,55 @@ def save_model(state, epoch, is_best, opt, n_retrain):
             model_file = dir_path / 'ckpt_epoch_{}.pth'.format(epoch)
         else:
             if opt.version == 'v3' or opt.version == 'v3a':
-                if not opt.nuc_loss:
-                    model_file = dir_path / 'ckpt_new_{}_d{}_epoch_{}.pth'.format(
-                        opt.version, opt.bind_size, epoch)
-                else:
+                if opt.nuc_loss:
                     model_file = dir_path / 'ckpt_new_{}_nl{}_s{}_d{}_epoch_{}.pth'.format(
                         opt.version, opt.nls, opt.save_epoch, opt.bind_size, epoch)
+                elif opt.pcc_loss:
+                    model_file = dir_path / 'ckpt_new_{}_pl{}_s{}_d{}_epoch_{}.pth'.format(
+                        opt.version, opt.pls, opt.save_epoch, opt.bind_size, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_new_{}_d{}_epoch_{}.pth'.format(
+                        opt.version, opt.bind_size, epoch)
             elif opt.version == 'v2q':
-                model_file = dir_path / 'ckpt_new_{}_q{}_epoch_{}.pth'.format(
-                    opt.version, opt.quant_bit, epoch)
+                if opt.pcc_loss:
+                    model_file = dir_path / 'ckpt_new_{}_pl{}_q{}_epoch_{}.pth'.format(
+                        opt.version, opt.pls, opt.quant_bit, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_new_{}_q{}_epoch_{}.pth'.format(
+                        opt.version, opt.quant_bit, epoch)
             else:
-                model_file = dir_path / 'ckpt_new_{}_epoch_{}.pth'.format(
-                    opt.version, epoch)
+                if opt.pcc_loss:
+                    model_file = dir_path / 'ckpt_new_{}_pl{}_epoch_{}.pth'.format(
+                        opt.version, opt.pls, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_new_{}_epoch_{}.pth'.format(
+                        opt.version, epoch)
     else:
         if opt.new:
             if opt.version == 'v3' or opt.version == 'v3a':
-                if not opt.nuc_loss:
-                    model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
-                        n_retrain, opt.version, opt.bind_size, epoch)
-                else:
+                if opt.nuc_loss:
                     model_file = dir_path / 'ckpt_rt{}_{}_nl{}_s{}_d{}_epoch_{}.pth'.format(
                         n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size, epoch)
+                elif opt.pcc_loss:
+                    model_file = dir_path / 'ckpt_rt{}_{}_pl{}_s{}_d{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.pls, opt.save_epoch, opt.bind_size, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_rt{}_{}_d{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.bind_size, epoch)
             elif opt.version == 'v2q':
-                model_file = dir_path / 'ckpt_rt{}_{}_q{}_epoch_{}.pth'.format(
-                    n_retrain, opt.version, opt.quant_bit, epoch)
+                if opt.pcc_loss:
+                    model_file = dir_path / 'ckpt_rt{}_{}_pl{}_q{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.pls, opt.quant_bit, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_rt{}_{}_q{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.quant_bit, epoch)
             else:
-                model_file = dir_path / 'ckpt_rt{}_{}_epoch_{}.pth'.format(
-                    n_retrain, opt.version, epoch)
+                if opt.pcc_loss:
+                    model_file = dir_path / 'ckpt_rt{}_{}_pl{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, opt.pls, epoch)
+                else:
+                    model_file = dir_path / 'ckpt_rt{}_{}_epoch_{}.pth'.format(
+                        n_retrain, opt.version, epoch)
         else:
             if opt.quant:
                 model_file = dir_path / 'ckpt_rt{}_q{}_epoch_{}.pth'.format(
@@ -99,33 +121,55 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                 shutil.copyfile(model_file, dir_path / 'ckpt_best.pth')
             else:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    if not opt.nuc_loss:
-                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_d{}_best.pth'.format(
-                            opt.version, opt.bind_size))
-                    else:
+                    if opt.nuc_loss:
                         shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_nl{}_s{}_d{}_best.pth'.format(
                             opt.version, opt.nls, opt.save_epoch, opt.bind_size))
+                    elif opt.pcc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_pl{}_s{}_d{}_best.pth'.format(
+                            opt.version, opt.pls, opt.save_epoch, opt.bind_size))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_d{}_best.pth'.format(
+                            opt.version, opt.bind_size))
                 elif opt.version == 'v2q':
-                    shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_q{}_best.pth'.format(
-                        opt.version, opt.quant_bit))
+                    if opt.pcc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_pl{}_q{}_best.pth'.format(
+                            opt.version, opt.pls, opt.quant_bit))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_q{}_best.pth'.format(
+                            opt.version, opt.quant_bit))
                 else:
-                    shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_best.pth'.format(
-                        opt.version))
+                    if opt.pcc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_pl{}_best.pth'.format(
+                            opt.version, opt.pls))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_new_{}_best.pth'.format(
+                            opt.version))
         else:
             if opt.new:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    if not opt.nuc_loss:
-                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
-                            n_retrain, opt.version, opt.bind_size))
-                    else:
+                    if opt.nuc_loss:
                         shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_nl{}_s{}_d{}_best.pth'.format(
                             n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size))
+                    elif opt.pcc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_pl{}_s{}_d{}_best.pth'.format(
+                            n_retrain, opt.version, opt.pls, opt.save_epoch, opt.bind_size))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_d{}_best.pth'.format(
+                            n_retrain, opt.version, opt.bind_size))
                 elif opt.version == 'v2q':
-                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_q{}_best.pth'.format(
-                        n_retrain, opt.version, opt.quant_bit))
+                    if opt.pcc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_pl{}_q{}_best.pth'.format(
+                            n_retrain, opt.version, opt.pls, opt.quant_bit))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_q{}_best.pth'.format(
+                            n_retrain, opt.version, opt.quant_bit))
                 else:
-                    shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_best.pth'.format(
-                        n_retrain, opt.version))
+                    if opt.pcc_loss:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_pl{}_best.pth'.format(
+                            n_retrain, opt.version, opt.pls))
+                    else:
+                        shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_{}_best.pth'.format(
+                            n_retrain, opt.version))
             else:
                 if opt.quant:
                     shutil.copyfile(model_file, dir_path / 'ckpt_rt{}_q{}_best.pth'.format(
@@ -141,32 +185,54 @@ def save_summary(summary, opt, n_retrain):
         if opt.new:
             if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    if not opt.nuc_loss:
-                        file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
-                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
-                    else:
+                    if opt.nuc_loss:
                         file_summ = dir_path / '{}_{}_rt{}_{}_nl{}_s{}_d{}.csv'.format(
                             opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
+                    elif opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_pl{}_s{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.pls, opt.save_epoch, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.bind_size)
                 elif opt.version == 'v2q':
-                    file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
-                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.quant_bit)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_pl{}_q{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.pls, opt.quant_bit)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.quant_bit)
                 else:
-                    file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
-                        opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_pl{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version, opt.pls)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.version)
             else:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    if not opt.nuc_loss:
-                        file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
-                            opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
-                    else:
+                    if opt.nuc_loss:
                         file_summ = dir_path / '{}_{}_rt{}_{}_nl{}_s{}_d{}.csv'.format(
                             opt.arch, opt.dataset, n_retrain, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
+                    elif opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_pl{}_s{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.pls, opt.save_epoch, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.bind_size)
                 elif opt.version == 'v2q':
-                    file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
-                        opt.arch, opt.dataset, n_retrain, opt.version, opt.quant_bit)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_pl{}_q{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.pls, opt.quant_bit)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_q{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.quant_bit)
                 else:
-                    file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
-                        opt.arch, opt.dataset, n_retrain, opt.version)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_rt{}_{}_pl{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version, opt.pls)
+                    else:
+                        file_summ = dir_path / '{}_{}_rt{}_{}.csv'.format(
+                            opt.arch, opt.dataset, n_retrain, opt.version)
         else:
             if opt.quant:
                 if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
@@ -179,32 +245,54 @@ def save_summary(summary, opt, n_retrain):
         if opt.new:
             if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    if not opt.nuc_loss:
-                        file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
-                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.bind_size)
-                    else:
+                    if opt.nuc_loss:
                         file_summ = dir_path / '{}_{}_new_{}_nl{}_s{}_d{}.csv'.format(
                             opt.arch+str(opt.layers), opt.dataset, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
+                    elif opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_pl{}_s{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.pls, opt.save_epoch, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.bind_size)
                 elif opt.version == 'v2q':
-                    file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
-                        opt.arch+str(opt.layers), opt.dataset, opt.version, opt.quant_bit)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_pl{}_q{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.pls, opt.quant_bit)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.quant_bit)
                 else:
-                    file_summ = dir_path / '{}_{}_new_{}.csv'.format(
-                        opt.arch+str(opt.layers), opt.dataset, opt.version)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_pl{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.pls)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}.csv'.format(
+                            opt.arch+str(opt.layers), opt.dataset, opt.version)
             else:
                 if opt.version == 'v3' or opt.version == 'v3a':
-                    if not opt.nuc_loss:
-                        file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
-                            opt.arch, opt.dataset, opt.version, opt.bind_size)
-                    else:
+                    if opt.nuc_loss:
                         file_summ = dir_path / '{}_{}_new_{}_nl{}_s{}_d{}.csv'.format(
                             opt.arch, opt.dataset, opt.version, opt.nls, opt.save_epoch, opt.bind_size)
+                    elif opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_pl{}_s{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.pls, opt.save_epoch, opt.bind_size)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}_d{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.bind_size)
                 elif opt.version == 'v2q':
-                    file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
-                        opt.arch, opt.dataset, opt.version, opt.quant_bit)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_pl{}_q{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.pls, opt.quant_bit)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}_q{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.quant_bit)
                 else:
-                    file_summ = dir_path / '{}_{}_new_{}.csv'.format(
-                        opt.arch, opt.dataset, opt.version)
+                    if opt.pcc_loss:
+                        file_summ = dir_path / '{}_{}_new_{}_pl{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version, opt.pls)
+                    else:
+                        file_summ = dir_path / '{}_{}_new_{}.csv'.format(
+                            opt.arch, opt.dataset, opt.version)
         else:
             if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
                 file_summ = dir_path / '{}_{}.csv'.format(

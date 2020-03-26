@@ -387,6 +387,40 @@ def train(train_loader, **kwargs):
                     first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
             inv_nuc_norm_regularity = opt.nls / torch.norm(first_conv_all, p='nuc')
             loss = criterion(output, target) + inv_nuc_norm_regularity
+        elif opt.pcc_loss:
+            d = opt.bind_size
+            if opt.arch in hasDiffLayersArchs:
+                try:
+                    first_conv = model.module.get_layer_conv(0).weight
+                except:
+                    first_conv = model.get_layer_conv(0).weight
+            else:
+                try:
+                    first_conv = model.module.get_layer_dwconv(0).weight
+                except:
+                    first_conv = model.get_layer_dwconv(0).weight
+            first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
+            sub_tensors = []
+            for idx in range(0, first_conv.size()[0], d):
+                sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
+            sum_sqpcc = 0.0
+            for idx_x in range(len(sub_tensors)):
+                for idx_y in range(idx_x+1,len(sub_tensors)):
+                    cov_xy = 0.0
+                    stddev_x = 0.0
+                    stddev_y = 0.0
+                    mean_x = torch.mean(sub_tensors[idx_x])
+                    mean_y = torch.mean(sub_tensors[idx_y])
+                    for idx_i in range(len(sub_tensors[idx_x])):
+                        cov_xy += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_y][idx_i] - mean_y)
+                        stddev_x += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_x][idx_i] - mean_x)
+                        stddev_y += (sub_tensors[idx_y][idx_i] - mean_y)*(sub_tensors[idx_y][idx_i] - mean_y)
+                    stddev_x = torch.sqrt(stddev_x)
+                    stddev_y = torch.sqrt(stddev_y)
+                    pcc_xy = cov_xy / (stddev_x*stddev_y)
+                    sum_sqpcc += pcc_xy*pcc_xy
+            inv_sqpcc_regularity = opt.pls / sum_sqpcc
+            loss = criterion(output, target) + inv_sqpcc_regularity
         else:
             loss = criterion(output, target)
 
