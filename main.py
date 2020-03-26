@@ -403,7 +403,7 @@ def train(train_loader, **kwargs):
             sub_tensors = []
             for idx in range(0, first_conv.size()[0], d):
                 sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
-            sum_sqpcc = 0.0
+            sum_abspcc = 0.0
             for idx_x in range(len(sub_tensors)):
                 for idx_y in range(idx_x+1,len(sub_tensors)):
                     cov_xy = 0.0
@@ -418,9 +418,9 @@ def train(train_loader, **kwargs):
                     stddev_x = torch.sqrt(stddev_x)
                     stddev_y = torch.sqrt(stddev_y)
                     pcc_xy = cov_xy / (stddev_x*stddev_y)
-                    sum_sqpcc += pcc_xy*pcc_xy
-            inv_sqpcc_regularity = opt.pls / sum_sqpcc
-            loss = criterion(output, target) + inv_sqpcc_regularity
+                    sum_abspcc += torch.abs(pcc_xy)
+            inv_abspcc_regularity = opt.pls / sum_abspcc
+            loss = criterion(output, target) + inv_abspcc_regularity
         else:
             loss = criterion(output, target)
 
