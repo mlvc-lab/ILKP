@@ -30,7 +30,8 @@ model_urls = {
     'resnet34':  'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
     'resnet50':  'https://download.pytorch.org/models/resnet50-19c8e357.pth',
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth'
+    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+    'shufflenetv2': 'https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth'
 }
 
 
@@ -41,7 +42,8 @@ def main():
     if opt.cuda and not torch.cuda.is_available():
         raise Exception('No GPU found, please run without --cuda')
 
-    model_name = opt.arch + str(opt.layers)
+    # model_name = opt.arch + str(opt.layers)
+    model_name = opt.arch
 
     dir_ckpt = pathlib.Path('checkpoint')
     dir_path = dir_ckpt / model_name / opt.dataset

@@ -116,19 +116,19 @@ if __name__ == '__main__':
             file_id = '15FpbDFnVPJSNfljG6DC2HzhgS_Oif1Ab'
         # elif args.arch == 'shufflenet':
         #     file_id = ''
-        # elif args.arch == 'shufflenetv2':
-        #     file_id = ''
-        # elif args.arch == 'resnet':
-        #     if args.layers == 18:
-        #         file_id = ''
-        #     if args.layers == 34:
-        #         file_id = ''
-        #     if args.layers == 50:
-        #         file_id = ''
-        #     if args.layers == 101:
-        #         file_id = ''
-        #     if args.layers == 152:
-        #         file_id = ''
+        elif args.arch == 'shufflenetv2':
+            file_id = '1QIjSHCRUqVT5dyWX8GUiJljMhvwgWm4a'
+        elif args.arch == 'resnet':
+            if args.layers == 18:
+                file_id = '1w7asTlU_ALte-SK2ma3skPgCTBuB2S27'
+            if args.layers == 34:
+                file_id = '1VLOt26dtEFqxeuwWErpHcbDS4PVivtsc'
+            if args.layers == 50:
+                file_id = '19Fr9Oi5G-2BJQB8H_OpUkKIXjjyRfoy0'
+            if args.layers == 101:
+                file_id = '1dJ2icl4mET00da1mB3k4BA_q81d4E-s4'
+            if args.layers == 152:
+                file_id = '1yFW5arNkZxK5lrju1kOaZi5SDh7VGFMZ'
         else:
             print('Not prepared yet..\nProgram exit...')
             exit()
