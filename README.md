@@ -89,7 +89,10 @@ $ python3 down_imagenet.py
 
 ## How to download a pretrained Model
 
-The pretrained models of ShuffleNet, ShuffleNetV2 and ResNets trained on ImegeNet is not available now..
+The pretrained models of ShuffleNet, ShuffleNetV2 trained on ImegeNet is not available now..  
+All the checkpoint files of ResNets trained on ImageNet are from the official torchvision models.  
+So, if you use that checkpoints, you can't resume right condition..  
+But, you can retrain or apply the MESS using those checkpoints.
 
 ### Usage
 
