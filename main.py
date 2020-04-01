@@ -419,7 +419,7 @@ def train(train_loader, **kwargs):
                     stddev_y = torch.sqrt(stddev_y)
                     pcc_xy = cov_xy / (stddev_x*stddev_y)
                     sum_abspcc += torch.abs(pcc_xy)
-            inv_abspcc_regularity = opt.pls / sum_abspcc
+            inv_abspcc_regularity = opt.pls * sum_abspcc
             loss = criterion(output, target) + inv_abspcc_regularity
         else:
             loss = criterion(output, target)
