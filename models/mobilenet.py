@@ -86,6 +86,14 @@ class MobileNet(nn.Module):
         else:
             print('Wrong layer number!!')
             exit()
+    
+    # get point-wise convolutional layer
+    def get_layer_pwconv(self, layer_num=0):
+        if layer_num < self.get_num_pwconv_layer():
+            return self.layers[layer_num].conv2
+        else:
+            print('Wrong layer number!!')
+            exit()
 
     # get weights of dwconv
     def get_weights_dwconv(self, use_cuda=True):
@@ -99,6 +107,19 @@ class MobileNet(nn.Module):
             _w_dwconv = _w_dwconv.detach().numpy()
             w_dwconv.append(_w_dwconv)
         return w_dwconv
+
+    # get weights of pwconv
+    def get_weights_pwconv(self, use_cuda=True):
+        num_pwconv_block = len(self.cfg)
+        w_pwconv = []
+        for i in range(num_pwconv_block):
+            if use_cuda:
+                _w_pwconv = self.layers[i].conv2.weight.cpu()
+            else:
+                _w_pwconv = self.layers[i].conv2.weight
+            _w_pwconv = _w_pwconv.detach().numpy()
+            w_pwconv.append(_w_pwconv)
+        return w_pwconv
 
     # set weights of dwconv
     def set_weights_dwconv(self, weight, use_cuda=True):
@@ -114,8 +135,26 @@ class MobileNet(nn.Module):
                 weight_tensor = torch.from_numpy(weight[i]).float()
             self.layers[i].conv1.weight.data.copy_(weight_tensor)
 
+    # set weights of pwconv
+    def set_weights_pwconv(self, weight, use_cuda=True):
+        if use_cuda:
+            gpuid = self.layers[0].conv2.weight.get_device()
+            cuda_gpu = 'cuda:' + str(gpuid)
+            device = torch.device(cuda_gpu)
+
+        for i in range(len(self.cfg)):
+            if use_cuda:
+                weight_tensor = torch.from_numpy(weight[i]).float().to(device)
+            else:
+                weight_tensor = torch.from_numpy(weight[i]).float()
+            self.layers[i].conv2.weight.data.copy_(weight_tensor)
+
     # get total number of dwconv layer
     def get_num_dwconv_layer(self):
+        return len(self.cfg)
+
+    # get total number of pwconv layer
+    def get_num_pwconv_layer(self):
         return len(self.cfg)
 
 
@@ -183,6 +222,14 @@ class MobileNet_CIFAR(nn.Module):
         else:
             print('Wrong layer number!!')
             exit()
+    
+    # get point-wise convolutional layer
+    def get_layer_pwconv(self, layer_num=0):
+        if layer_num < self.get_num_pwconv_layer():
+            return self.layers[layer_num].conv2
+        else:
+            print('Wrong layer number!!')
+            exit()
 
     # get weights of dwconv
     def get_weights_dwconv(self, use_cuda=True):
@@ -196,6 +243,19 @@ class MobileNet_CIFAR(nn.Module):
             _w_dwconv = _w_dwconv.detach().numpy()
             w_dwconv.append(_w_dwconv)
         return w_dwconv
+
+    # get weights of pwconv
+    def get_weights_pwconv(self, use_cuda=True):
+        num_pwconv_block = len(self.cfg)
+        w_pwconv = []
+        for i in range(num_pwconv_block):
+            if use_cuda:
+                _w_pwconv = self.layers[i].conv2.weight.cpu()
+            else:
+                _w_pwconv = self.layers[i].conv2.weight
+            _w_pwconv = _w_pwconv.detach().numpy()
+            w_pwconv.append(_w_pwconv)
+        return w_pwconv
     
     # set weights of dwconv
     def set_weights_dwconv(self, weight, use_cuda=True):
@@ -211,8 +271,26 @@ class MobileNet_CIFAR(nn.Module):
                 weight_tensor = torch.from_numpy(weight[i]).float()
             self.layers[i].conv1.weight.data.copy_(weight_tensor)
 
+    # set weights of pwconv
+    def set_weights_pwconv(self, weight, use_cuda=True):
+        if use_cuda:
+            gpuid = self.layers[0].conv2.weight.get_device()
+            cuda_gpu = 'cuda:' + str(gpuid)
+            device = torch.device(cuda_gpu)
+
+        for i in range(len(self.cfg)):
+            if use_cuda:
+                weight_tensor = torch.from_numpy(weight[i]).float().to(device)
+            else:
+                weight_tensor = torch.from_numpy(weight[i]).float()
+            self.layers[i].conv2.weight.data.copy_(weight_tensor)
+
     # get total number of dwconv layer
     def get_num_dwconv_layer(self):
+        return len(self.cfg)
+
+    # get total number of pwconv layer
+    def get_num_pwconv_layer(self):
         return len(self.cfg)
 
 
