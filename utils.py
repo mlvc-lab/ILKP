@@ -185,7 +185,8 @@ def save_summary(summary, opt, n_retrain):
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
-    file_summ += '.csv'
+    file_name += '.csv'
+    file_summ = dir_path / file_name
 
     first_save_epoch = 0
     if opt.new:

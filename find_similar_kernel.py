@@ -282,7 +282,6 @@ def find_kernel(model, ckpt):
         new_model_filename += '_q{}'.format(opt.quant_bit)
         if opt.ifl:
             new_model_filename += '_ifl'
-    else:
     new_model_filename += '.pth'
     model_file = dir_path / new_model_filename
     torch.save(ckpt, model_file)
