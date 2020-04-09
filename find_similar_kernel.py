@@ -38,7 +38,7 @@ def config():
     parser.add_argument('--groups', default=2, type=int, metavar='N',
                         help='number of groups for ShuffleNet (default: 2)')
     parser.add_argument('--ckpt', default='', type=str, metavar='PATH',
-                        help='Path of checkpoint (Default: none)')
+                        help='Path of checkpoint (default: none)')
     parser.add_argument('-v', '--version', default='', type=str, metavar='VER',
                         dest='version', help='find kernel version number (default: none)')
     parser.add_argument('-d', '--bind-size', default=2, type=int, metavar='N',
@@ -50,6 +50,8 @@ def config():
     # for quantization
     parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
+    parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
+                        help='include first layer?')
 
     cfg = parser.parse_args()
     return cfg
@@ -176,7 +178,7 @@ def find_kernel(model, ckpt):
                                     if min_diff > diff:
                                         min_diff = diff
                                         ref_idx = v * len(w_conv[ref_layer]) + w
-                        elif opt.version in ['v2', 'v2a', 'v2q']:
+                        elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq']:
                             for v in range(len(w_conv[ref_layer])):
                                 for w in range(len(w_conv[ref_layer][v])):
                                     # find alpha, beta using least squared method every kernel in reference layer
@@ -273,12 +275,15 @@ def find_kernel(model, ckpt):
     ckpt['idx'] = idx_all
     ckpt['version'] = opt.version
 
+    new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
     if opt.version == 'v3' or opt.version == 'v3a':
-        new_model_filename = '{}_{}_d{}.pth'.format(opt.ckpt[:-4], opt.version, opt.bind_size)
+        new_model_filename += '_d{}'.format(opt.bind_size)
     elif opt.version == 'v2q':
-        new_model_filename = '{}_{}_q{}.pth'.format(opt.ckpt[:-4], opt.version, opt.quant_bit)
+        new_model_filename += '_q{}'.format(opt.quant_bit)
+        if opt.ifl:
+            new_model_filename += '_ifl'
     else:
-        new_model_filename = '{}_{}.pth'.format(opt.ckpt[:-4], opt.version)
+    new_model_filename += '.pth'
     model_file = dir_path / new_model_filename
     torch.save(ckpt, model_file)
 
@@ -363,7 +368,12 @@ def quantize(model, num_bits=8):
     qmin = -2.**(num_bits - 1.)
     qmax = 2.**(num_bits - 1.) - 1.
 
-    for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+    if opt.ifl:
+        start_layer = 0
+    else:
+        start_layer = 1
+
+    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
         min_val = np.amin(w_conv[i])
         max_val = np.amax(w_conv[i])
         scale = (max_val - min_val) / (qmax - qmin)

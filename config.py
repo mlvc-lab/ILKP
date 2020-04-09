@@ -85,6 +85,8 @@ def config():
                         help='use quantization?')
     parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
+    parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
+                        help='quantize include first layer?')
 
     cfg = parser.parse_args()
     cfg.gpuids = list(map(int, cfg.gpuids))

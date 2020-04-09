@@ -38,6 +38,10 @@ def main():
     if model is None:
         print('==> unavailable model parameters!! exit...\n')
         exit()
+    
+    # pwconv = model.get_weights_pwconv(use_cuda=True)
+    # print(pwconv)
+    # exit()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=opt.lr,
@@ -884,7 +888,12 @@ def quantize(model, num_bits=8):
     qmin = -2.**(num_bits - 1.)
     qmax = 2.**(num_bits - 1.) - 1.
 
-    for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+    if opt.ifl:
+        start_layer = 0
+    else:
+        start_layer = 1
+
+    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
         min_val = np.amin(w_conv[i])
         max_val = np.amax(w_conv[i])
         scale = (max_val - min_val) / (qmax - qmin)

@@ -40,6 +40,8 @@ def config():
                         help='Path of checkpoint (Default: none)')
     parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
+    parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
+                        help='include first layer?')
 
     cfg = parser.parse_args()
     return cfg
@@ -94,7 +96,12 @@ def save_quantized_model(model, ckpt, num_bits=8):
     qmin = -2.**(num_bits - 1.)
     qmax = 2.**(num_bits - 1.) - 1.
 
-    for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+    if opt.ifl:
+        start_layer = 0
+    else:
+        start_layer = 1
+
+    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
         min_val = np.amin(w_conv[i])
         max_val = np.amax(w_conv[i])
         scale = (max_val - min_val) / (qmax - qmin)
@@ -108,7 +115,10 @@ def save_quantized_model(model, ckpt, num_bits=8):
 
     ckpt['model'] = model.state_dict()
 
-    new_model_filename = '{}_q{}.pth'.format(opt.ckpt[:-4], opt.quant_bit)
+    if opt.ifl:
+        new_model_filename = '{}_q{}_ifl.pth'.format(opt.ckpt[:-4], opt.quant_bit)
+    else:
+        new_model_filename = '{}_q{}.pth'.format(opt.ckpt[:-4], opt.quant_bit)
     model_file = dir_path / new_model_filename
 
     torch.save(ckpt, model_file)
