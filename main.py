@@ -27,21 +27,17 @@ def main():
     if opt.cuda and not torch.cuda.is_available():
         raise Exception('No GPU found, please run without --cuda')
 
+    arch_name = opt.arch
     hasDiffLayersArchs = ['vgg', 'resnet', 'resnext', 'wideresnet']
     if opt.arch in hasDiffLayersArchs:
-        print('\n=> creating model \'{}\''.format(opt.arch + str(opt.layers)))
-    else:
-        print('\n=> creating model \'{}\''.format(opt.arch))
+        arch_name += str(opt.layers)
 
+    print('\n=> creating model \'{}\''.format(arch_name))
     model = build_model(opt)
 
     if model is None:
         print('==> unavailable model parameters!! exit...\n')
         exit()
-    
-    # pwconv = model.get_weights_pwconv(use_cuda=True)
-    # print(pwconv)
-    # exit()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=opt.lr,
@@ -61,10 +57,7 @@ def main():
 
     # checkpoint file
     ckpt_dir = pathlib.Path('checkpoint')
-    if opt.arch in hasDiffLayersArchs:
-        ckpt_file = ckpt_dir / (opt.arch + str(opt.layers)) / opt.dataset / opt.ckpt
-    else:
-        ckpt_file = ckpt_dir / opt.arch / opt.dataset / opt.ckpt
+    ckpt_file = ckpt_dir / arch_name / opt.dataset / opt.ckpt
 
     # for resuming training
     if opt.resume:
@@ -108,10 +101,7 @@ def main():
             print('\n===> [ Evaluation ]')
             start_time = time.time()
             acc1, acc5 = validate(val_loader, model, criterion)
-            if opt.arch in hasDiffLayersArchs:
-                ckpt_name = '{}-{}-{}'.format(opt.arch+str(opt.layers), opt.dataset, opt.ckpt[:-4])
-            else:
-                ckpt_name = '{}-{}-{}'.format(opt.arch, opt.dataset, opt.ckpt[:-4])
+            ckpt_name = '{}-{}-{}'.format(arch_name, opt.dataset, opt.ckpt[:-4])
             save_eval([ckpt_name, str(acc1)[7:-18], str(acc5)[7:-18]])
             elapsed_time = time.time() - start_time
             print('====> {:.2f} seconds to evaluate this model\n'.format(
@@ -157,30 +147,19 @@ def main():
         adjust_learning_rate(optimizer, epoch, opt.lr)
         if opt.retrain:
             if opt.new:
-                if opt.arch in hasDiffLayersArchs:
-                    if version == 'v2q':
-                        print('\n==> {}/{} {}-th {}bit retraining'.format(
-                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.quant_bit))
-                    else:
-                        print('\n==> {}/{} {}-th retraining'.format(
-                            opt.arch+str(opt.layers), opt.dataset, n_retrain))
+                if version == 'v2q':
+                    print('\n==> {}/{} {}-th {}bit retraining'.format(
+                        arch_name, opt.dataset, n_retrain, opt.quant_bit))
                 else:
-                    if version == 'v2q':
-                        print('\n==> {}/{} {}-th {}bit retraining'.format(
-                            opt.arch, opt.dataset, n_retrain, opt.quant_bit))
-                    else:
-                        print('\n==> {}/{} {}-th retraining'.format(
-                            opt.arch, opt.dataset, n_retrain))
+                    print('\n==> {}/{} {}-th retraining'.format(
+                        arch_name, opt.dataset, n_retrain))
             else:
                 if opt.quant:
-                    if opt.arch in hasDiffLayersArchs:
-                        print('\n==> {}/{} {}-th {}bit retraining'.format(
-                            opt.arch+str(opt.layers), opt.dataset, n_retrain, opt.quant_bit))
-                    else:
-                        print('\n==> {}/{} {}-th {}bit retraining'.format(
-                            opt.arch, opt.dataset, n_retrain, opt.quant_bit))
+                    print('\n==> {}/{} {}-th {}bit retraining'.format(
+                        arch_name, opt.dataset, n_retrain, opt.quant_bit))
             print('==> Epoch: {}, lr = {}'.format(
                 epoch, optimizer.param_groups[0]["lr"]))
+
             # train for one epoch
             print('===> [ Retraining ]')
             start_time = time.time()
@@ -205,37 +184,21 @@ def main():
                     quantize(model, opt.quant_bit)
         else:
             if not opt.new:
-                if opt.arch in hasDiffLayersArchs:
-                    print('\n==> {}/{} training'.format(
-                        opt.arch+str(opt.layers), opt.dataset))
-                else:
-                    print('\n==> {}/{} training'.format(
-                        opt.arch, opt.dataset))
-                print('==> Epoch: {}, lr = {}'.format(
-                    epoch, optimizer.param_groups[0]["lr"]))
+                print('\n==> {}/{} training'.format(
+                    arch_name, opt.dataset))
             else:
-                if opt.arch in hasDiffLayersArchs:
-                    if opt.version == 'v3' or opt.version == 'v3a':
-                        print('\n==> {}/{}-new_{}_d{} training'.format(
-                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.bind_size))
-                    elif opt.version == 'v2q':
-                        print('\n==> {}/{}-new_{} {}bit training'.format(
-                            opt.arch+str(opt.layers), opt.dataset, opt.version, opt.quant_bit))
-                    else:
-                        print('\n==> {}/{}-new_{} training'.format(
-                            opt.arch+str(opt.layers), opt.dataset, opt.version))
+                if opt.version == 'v3' or opt.version == 'v3a':
+                    print('\n==> {}/{}-new_{}_d{} training'.format(
+                        arch_name, opt.dataset, opt.version, opt.bind_size))
+                elif opt.version == 'v2q':
+                    print('\n==> {}/{}-new_{} {}bit training'.format(
+                        arch_name, opt.dataset, opt.version, opt.quant_bit))
                 else:
-                    if opt.version == 'v3' or opt.version == 'v3a':
-                        print('\n==> {}/{}-new_{}_d{} training'.format(
-                            opt.arch, opt.dataset, opt.version, opt.bind_size))
-                    elif opt.version == 'v2q':
-                        print('\n==> {}/{}-new_{} {}bit training'.format(
-                            opt.arch, opt.dataset, opt.version, opt.quant_bit))
-                    else:
-                        print('\n==> {}/{}-new_{} training'.format(
-                            opt.arch, opt.dataset, opt.version))
-                print('==> Epoch: {}, lr = {}'.format(
-                    epoch, optimizer.param_groups[0]["lr"]))
+                    print('\n==> {}/{}-new_{} training'.format(
+                        arch_name, opt.dataset, opt.version))
+            print('==> Epoch: {}, lr = {}'.format(
+                epoch, optimizer.param_groups[0]["lr"]))
+
             # train for one epoch
             print('===> [ Training ]')
             start_time = time.time()
@@ -272,12 +235,12 @@ def main():
                     is_best = acc1_valid > best_acc1
                     best_acc1 = max(acc1_valid, best_acc1)
                     state = {'epoch': epoch + 1,
-                            'model': model.state_dict(),
-                            'optimizer': optimizer.state_dict(),
-                            'n_retrain': n_retrain,
-                            'new': True,
-                            'version': version,
-                            'idx': idx}
+                             'model': model.state_dict(),
+                             'optimizer': optimizer.state_dict(),
+                             'n_retrain': n_retrain,
+                             'new': True,
+                             'version': version,
+                             'idx': idx}
                     summary = [epoch,
                             str(acc1_train)[7:-18], str(acc5_train)[7:-18],
                             str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]
