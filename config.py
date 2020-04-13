@@ -85,6 +85,10 @@ def config():
                         help='use quantization?')
     parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
+    parser.add_argument('--qba', '--quant_bit_a', default=8, type=int, metavar='N', dest='quant_bit_a',
+                        help='number of bits for quantizing alphas (Default: 8)')
+    parser.add_argument('--qbb', '--quant_bit_b', default=8, type=int, metavar='N', dest='quant_bit_b',
+                        help='number of bits for quantizing betas (Default: 8)')
     parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
                         help='quantize include first layer?')
 

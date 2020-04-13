@@ -36,7 +36,7 @@ do
                 python3 main.py $data -a $model -j 4 -C -g 0 -E -N --ckpt "ckpt_best_v2q_q"$qb"_ifl.pth" --qb $qb
                 python3 main.py $data -a $model -j 4 -C -g 0 1 -b 256 -T --ckpt "ckpt_best_v2q_q"$qb"_ifl.pth" -N -v v2q --qb $qb --lr 0.01 -i
                 rm -f checkpoint/*/*/ckpt_rt*_v*_q*_ifl_epoch_*.pth
-                python3 main.py $data -a $model -j 4 -C -g 0 -E -N --ckpt "ckpt_rt1_v2q_q"$qb"_best.pth" --qb $qb
+                python3 main.py $data -a $model -j 4 -C -g 0 -E -N --ckpt "ckpt_rt1_v2q_q"$qb"_ifl_best.pth" --qb $qb
             fi
         done
     done

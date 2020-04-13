@@ -50,6 +50,10 @@ def config():
     # for quantization
     parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
+    parser.add_argument('--qba', '--quant_bit_a', default=8, type=int, metavar='N', dest='quant_bit_a',
+                        help='number of bits for quantizing alphas (Default: 8)')
+    parser.add_argument('--qbb', '--quant_bit_b', default=8, type=int, metavar='N', dest='quant_bit_b',
+                        help='number of bits for quantizing betas (Default: 8)')
     parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
                         help='include first layer?')
 
@@ -62,12 +66,12 @@ def main():
     opt = config()
 
     # model
+    arch_name = opt.arch
     hasDiffLayersArchs = ['vgg', 'resnet', 'resnext', 'wideresnet']
     if opt.arch in hasDiffLayersArchs:
-        print('\n=> creating model \'{}\''.format(opt.arch + str(opt.layers)))
-    else:
-        print('\n=> creating model \'{}\''.format(opt.arch))
+        arch_name += str(opt.layers)
 
+    print('\n=> creating model \'{}\''.format(arch_name))
     model = build_model(opt)
 
     if model is None:
@@ -76,10 +80,7 @@ def main():
 
     # checkpoint file
     ckpt_dir = pathlib.Path('checkpoint')
-    if opt.arch in hasDiffLayersArchs:
-        dir_path = ckpt_dir / (opt.arch + str(opt.layers)) / opt.dataset
-    else:
-        dir_path = ckpt_dir / opt.arch / opt.dataset
+    dir_path = ckpt_dir / arch_name / opt.dataset
     ckpt_file = dir_path / opt.ckpt
 
     if isfile(ckpt_file):
@@ -95,7 +96,7 @@ def main():
                 exit()
             weight_analysis(model, checkpoint)
             return
-        if opt.version == 'v2q':
+        if opt.version in ['v2q', 'v2qq']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
         print('==> Find the most similar kernel in previous layers ' +
@@ -250,7 +251,7 @@ def find_kernel(model, ckpt):
                             if min_diff > diff:
                                 min_diff = diff
                                 ref_idx = k
-                    elif opt.version in ['v2', 'v2a', 'v2q']:
+                    elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq']:
                         for k in range(len(w_conv[ref_layer])):
                             # find alpha, beta using least squared method every kernel in reference layer
                             mean_cur = np.mean(w_conv[i][j][0])
@@ -272,14 +273,19 @@ def find_kernel(model, ckpt):
                     idx.append(ref_idx)
                 idx_all.append(idx)
 
+    if opt.version == 'v2qq':
+        quantize_ab(idx_all, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
     ckpt['idx'] = idx_all
     ckpt['version'] = opt.version
 
     new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
-    if opt.version == 'v3' or opt.version == 'v3a':
+    if opt.version in ['v3', 'v3a']:
         new_model_filename += '_d{}'.format(opt.bind_size)
-    elif opt.version == 'v2q':
+    elif opt.version in ['v2q', 'v2qq']:
         new_model_filename += '_q{}'.format(opt.quant_bit)
+        if opt.version == 'v2qq':
+            new_model_filename += '{}{}'.format(
+                opt.quant_bit_a, opt.quant_bit_b)
         if opt.ifl:
             new_model_filename += '_ifl'
     new_model_filename += '.pth'
@@ -383,6 +389,37 @@ def quantize(model, num_bits=8):
         model.set_weights_conv(w_conv, use_cuda=False)
     else:
         model.set_weights_dwconv(w_conv, use_cuda=False)
+
+
+def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
+    """quantize alpha/betas
+    """
+    qmin_a = -2.**(num_bits_a - 1.)
+    qmax_a = 2.**(num_bits_a - 1.) - 1.
+    qmin_b = -2.**(num_bits_b - 1.)
+    qmax_b = 2.**(num_bits_b - 1.) - 1.
+
+    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
+        k = []
+        alphas = []
+        betas = []
+        for j in range(len(indices[i])):
+            _k, _alpha, _beta = indices[i][j]
+            k.append(_k)
+            alphas.append(_alpha)
+            betas.append(_beta)
+        min_val_a = np.amin(alphas)
+        max_val_a = np.amax(alphas)
+        min_val_b = np.amin(betas)
+        max_val_b = np.amax(betas)
+        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
+        scale_b = (max_val_b - min_val_b) / (qmax_b - qmin_b)
+        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
+        betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
+        alphas = scale_a * alphas
+        betas = scale_b * betas
+        for j in range(len(indices[i])):
+            indices[i][j] = k[j], alphas[j], betas[j]
 
 
 if __name__ == '__main__':
