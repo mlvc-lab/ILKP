@@ -441,7 +441,8 @@ def shufflenetv2(data='cifar10', width_mult=1.0):
         return ShuffleNetV2_CIFAR([4, 8, 4], out_channels[width_mult], num_classes=100)
     elif data == 'imagenet':
         return ShuffleNetV2([4, 8, 4], out_channels[width_mult], num_classes=1000)
-    else:
-        return None
+    # TODO:
     # elif data == 'tinyimagenet':
     #     return ShuffleNetV2([4, 8, 4], out_channels[width_mult], num_classes=100)
+    else:
+        return None

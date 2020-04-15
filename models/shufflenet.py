@@ -329,6 +329,13 @@ class ShuffleNet(nn.Module):
             w_dwconv.append(_w_dwconv)
         return w_dwconv
 
+    # get weights of pwconv
+    def get_weights_pwconv(self, use_cuda=True):
+        w_pwconv = []
+        #TODO: ShuffleNet은 group pointwise convolution임.
+        # 어떻게 처리할지 생각하고 코딩
+        return w_pwconv
+
     # set weights of dwconv
     def set_weights_dwconv(self, weight, use_cuda=True):
         if use_cuda:
@@ -564,7 +571,8 @@ def shufflenet(data='cifar10', num_groups=2, width_mult=1.0):
         return ShuffleNet_CIFAR(num_groups, width_mult=width_mult, num_classes=100)
     elif data == 'imagenet':
         return ShuffleNet(num_groups, width_mult=width_mult, num_classes=1000)
-    else:
-        return None
+    # TODO:
     # elif data == 'tinyimagenet':
     #     return ShuffleNet(num_groups, width_mult=width_mult, num_classes=100)
+    else:
+        return None

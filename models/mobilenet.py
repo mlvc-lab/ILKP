@@ -301,7 +301,8 @@ def mobilenet(data='cifar10', width_mult=1.0):
         return MobileNet_CIFAR(100, width_mult)
     elif data == 'imagenet':
         return MobileNet(1000, width_mult)
-    else:
-        return None
+    # TODO:
     # elif data == 'tinyimagenet':
     #     return MobileNet(100, width_mult)
+    else:
+        return None

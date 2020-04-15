@@ -394,7 +394,8 @@ def mobilenetv2(data='cifar10', width_mult=1.0):
         return MobileNetV2_CIFAR(100, width_mult)
     elif data == 'imagenet':
         return MobileNetV2(1000, width_mult)
-    else:
-        return None
+    # TODO:
     # elif data == 'tinyimagenet':
     #     return MobileNetV2(100, width_mult)
+    else:
+        return None

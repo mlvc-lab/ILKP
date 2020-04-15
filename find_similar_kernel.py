@@ -293,7 +293,7 @@ def find_kernel(model, ckpt):
     torch.save(ckpt, model_file)
 
     return new_model_filename
-    # TODO
+    # TODO:
     # 저장을 어떻게 할 것인가
     # 원래 코드에서 model.state_dict()만 저장하고 불러들이는데 사용됨.
     # conv weight만 따로 빼서 저장해보기

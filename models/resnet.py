@@ -546,12 +546,14 @@ def resnet(data='cifar10', **kwargs):
             return ResNet(Bottleneck, [3, 8, 36, 3], 1000)
         else:
             return None
-    else:
-        return None
+    # TODO:
     # elif data == 'tinyimagenet':
     #     return ResNet(100)
+    else:
+        return None
 
-
+# TODO:
+'''
 def resnext(data='imagenet', **kwargs):
     return None
     # if data == 'cifar10':
@@ -574,6 +576,7 @@ def wideresnet(data='imagenet', **kwargs):
     #     return ResNet(1000)
     # elif data == 'tinyimagenet':
     #     return ResNet(100)
+'''
 
 '''
 def resnext50_32x4d(pretrained=False, progress=True, **kwargs):
