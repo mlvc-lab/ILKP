@@ -21,13 +21,16 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2
   - v2a
   - v2q (quantization ver)
+  - v2qq (quantization ver with alpha, beta qunatization)
 - v3
   - v3
   - v3a
 
 ## Number of (Depth-wise) Convolution kernels in Models
 
-### Mobile-friendly models - depth-wise convolution
+### Mobile-friendly models - CIFAR - depth-wise convolution
+
+ShuffleNet -> groups=2 (CIFAR)
 
 | LayerNum |  MobileNet   | MobileNetV2 | ShuffleNet  | ShuffleNetV2 |
 |:--------:|:------------:|:-----------:|:-----------:|:------------:|
@@ -50,6 +53,8 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 |    16    |              | (3X3X1)X960 |             | (3X3X1)X232  |
 |    17    |              |             |             | (3X3X1)X232  |
 |    18    |              |             |             | (3X3X1)X232  |
+
+IamgeNet/ShuffleNet -> groups=3
 
 ### ResNets - CIFAR - convolution
 
