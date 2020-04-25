@@ -1,5 +1,6 @@
 """ShuffleNetV2 in PyTorch.
 See the paper "ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design"
+(https://arxiv.org/abs/1807.11164)
 for more details.
 """
 import torch
