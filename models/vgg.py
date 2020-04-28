@@ -95,21 +95,11 @@ class VGG_CIFAR(nn.Module):
     def __init__(self, features, num_classes=10):
         super(VGG_CIFAR, self).__init__()
         self.features = features
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.classifier = nn.Sequential(
-            nn.Linear(512, 512),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(512, 512),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(512, num_classes),
-        )
+        self.classifier = nn.Linear(512, num_classes)
         self._initialize_weights()
 
     def forward(self, x):
         x = self.features(x)
-        x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
