@@ -429,21 +429,20 @@ class ShuffleNetV2_CIFAR(nn.Module):
         return len(self.stage2)+len(self.stage3)+len(self.stage4)+3
 
 
-def shufflenetv2(data='cifar10', width_mult=1.0):
+def shufflenetv2(data='cifar10', **kwargs):
+    width_mult = kwargs.get('width_mult')
     out_channels = {
         0.5:[24, 48, 96, 192, 1024],
         1.0:[24, 116, 232, 464, 1024],
         1.5:[24, 176, 352, 704, 1024],
         2.0:[24, 244, 488, 976, 2048]
     }
-    if data == 'cifar10':
-        return ShuffleNetV2_CIFAR([4, 8, 4], out_channels[width_mult], num_classes=10)
-    elif data == 'cifar100':
-        return ShuffleNetV2_CIFAR([4, 8, 4], out_channels[width_mult], num_classes=100)
+    if data in ['cifar10', 'cifar100']:
+        return ShuffleNetV2_CIFAR([4, 8, 4], out_channels[width_mult], int(data[5:]))
     elif data == 'imagenet':
-        return ShuffleNetV2([4, 8, 4], out_channels[width_mult], num_classes=1000)
+        return ShuffleNetV2([4, 8, 4], out_channels[width_mult], 1000)
     # TODO:
     # elif data == 'tinyimagenet':
-    #     return ShuffleNetV2([4, 8, 4], out_channels[width_mult], num_classes=100)
+    #     return ShuffleNetV2([4, 8, 4], out_channels[width_mult], 100)
     else:
         return None

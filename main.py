@@ -33,7 +33,9 @@ def main():
         arch_name += str(opt.layers)
 
     print('\n=> creating model \'{}\''.format(arch_name))
-    model = build_model(opt)
+    model = models.__dict__[opt.arch](data=opt.dataset,
+                                      num_layers=opt.layers, num_groups=opt.groups,
+                                      width_mult=opt.width_mult, batch_norm=opt.bn)
 
     if model is None:
         print('==> unavailable model parameters!! exit...\n')

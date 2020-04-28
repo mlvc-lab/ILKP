@@ -7,7 +7,7 @@ do
     for qb in 8 6 4 2
     do
         echo "linear quantization baseline"
-        python3 quantize.py imagenet -a resnet --layer $layer --ckpt ckpt_best.pth --qb $qb
+        python3 quantize.py imagenet -a resnet --layers $layer --ckpt ckpt_best.pth --qb $qb
         python3 main.py imagenet -a resnet --layers $layer -j 16 -C -g 0 1 -b 256 -E --ckpt "ckpt_best_q"$qb".pth" --datapath /dataset/ImageNet
         python3 main.py imagenet -a resnet --layers $layer -j 16 -C -g 0 1 -b 256 --wd 1e-5 -p 500 -T -Q --qb $qb --ckpt "ckpt_best_q"$qb".pth" --datapath /dataset/ImageNet --lr 0.01 --epochs 90
         rm -f checkpoint/*/*/ckpt_rt*_q*_epoch_*.pth
@@ -23,7 +23,7 @@ do
     for qb in 8 6 4 2
     do
         echo "linear quantization-ifl baseline"
-        python3 quantize.py imagenet -a resnet --layer $layer --ckpt ckpt_best.pth --qb $qb -i
+        python3 quantize.py imagenet -a resnet --layers $layer --ckpt ckpt_best.pth --qb $qb -i
         python3 main.py imagenet -a resnet --layers $layer -j 16 -C -g 0 1 -b 256 -E --ckpt "ckpt_best_q"$qb"_ifl.pth" --datapath /dataset/ImageNet
         python3 main.py imagenet -a resnet --layers $layer -j 16 -C -g 0 1 -b 256 --wd 1e-5 -p 500 -T -Q --qb $qb --ckpt "ckpt_best_q"$qb"_ifl.pth" --datapath /dataset/ImageNet --lr 0.01 --epochs 90 -i
         rm -f checkpoint/*/*/ckpt_rt*_q*_ifl_epoch_*.pth

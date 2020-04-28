@@ -11,16 +11,6 @@ from collections import OrderedDict
 import models
 
 
-def build_model(opt):
-    if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
-        model = models.__dict__[opt.arch](opt.dataset, num_layers=opt.layers, width_mult=opt.width_mult)
-    elif opt.arch == 'shufflenet':
-        model = models.__dict__[opt.arch](opt.dataset, num_groups=opt.groups, width_mult=opt.width_mult)
-    else:
-        model = models.__dict__[opt.arch](opt.dataset, width_mult=opt.width_mult)
-    return model
-
-
 def load_model(model, ckpt_file, main_gpu, use_cuda=True):
     if use_cuda:
         checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(main_gpu))

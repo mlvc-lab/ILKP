@@ -565,11 +565,11 @@ class ShuffleNet_CIFAR(nn.Module):
         return len(self.stage2) + len(self.stage3) + len(self.stage4)
 
 
-def shufflenet(data='cifar10', num_groups=2, width_mult=1.0):
-    if data == 'cifar10':
-        return ShuffleNet_CIFAR(num_groups, width_mult=width_mult, num_classes=10)
-    elif data == 'cifar100':
-        return ShuffleNet_CIFAR(num_groups, width_mult=width_mult, num_classes=100)
+def shufflenet(data='cifar10', **kwargs):
+    num_groups = kwargs.get('num_groups')
+    width_mult = kwargs.get('width_mult')
+    if data in ['cifar10', 'cifar100']:
+        return ShuffleNet_CIFAR(num_groups, width_mult=width_mult, num_classes=int(data[5:]))
     elif data == 'imagenet':
         return ShuffleNet(num_groups, width_mult=width_mult, num_classes=1000)
     # TODO:

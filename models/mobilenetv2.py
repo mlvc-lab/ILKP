@@ -388,11 +388,10 @@ class MobileNetV2_CIFAR(nn.Module):
         return 2 * len(self.features[1:-1]) - 1
 
 
-def mobilenetv2(data='cifar10', width_mult=1.0):
-    if data == 'cifar10':
-        return MobileNetV2_CIFAR(10, width_mult)
-    elif data == 'cifar100':
-        return MobileNetV2_CIFAR(100, width_mult)
+def mobilenetv2(data='cifar10', **kwargs):
+    width_mult = kwargs.get('width_mult')
+    if data in ['cifar10', 'cifar100']:
+        return MobileNetV2_CIFAR(int(data[5:]), width_mult)
     elif data == 'imagenet':
         return MobileNetV2(1000, width_mult)
     # TODO:

@@ -199,7 +199,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         return self._forward_impl(x)
-    
+
     # get convolutional layer
     def get_layer_conv(self, layer_num=0):
         if layer_num == 0:
@@ -261,7 +261,7 @@ class ResNet(nn.Module):
                 w_conv.append(self.layer3[i].conv1.weight.detach().numpy())
                 w_conv.append(self.layer3[i].conv2.weight.detach().numpy())
         return w_conv
-    
+
     def set_weights_conv(self, weight, use_cuda=True):
         if use_cuda:
             gpuid = self.conv1.weight.get_device()
@@ -305,7 +305,7 @@ class ResNet(nn.Module):
                 weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float()
             self.layer3[i].conv1.weight.data.copy_(weight_tensor_conv1)
             self.layer3[i].conv2.weight.data.copy_(weight_tensor_conv2)
-    
+
     def get_num_conv_layer(self):
         return 2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3) + 1
 
@@ -401,7 +401,7 @@ class ResNet_CIFAR(nn.Module):
 
     def forward(self, x):
         return self._forward_impl(x)
-    
+
     # get convolutional layer
     def get_layer_conv(self, layer_num=0):
         if layer_num == 0:
@@ -457,7 +457,8 @@ class ResNet_CIFAR(nn.Module):
                 w_conv.append(self.layer3[i].conv1.weight.detach().numpy())
                 w_conv.append(self.layer3[i].conv2.weight.detach().numpy())
         return w_conv
-    
+
+    # set weights of convolutional layers
     def set_weights_conv(self, weight, use_cuda=True):
         if use_cuda:
             gpuid = self.conv1.weight.get_device()
@@ -501,50 +502,41 @@ class ResNet_CIFAR(nn.Module):
                 weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float()
             self.layer3[i].conv1.weight.data.copy_(weight_tensor_conv1)
             self.layer3[i].conv2.weight.data.copy_(weight_tensor_conv2)
-    
+
+    # get total number of convolutional layers
     def get_num_conv_layer(self):
         return 2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3) + 1
 
 
+# Model configurations
+cfgs = {
+    '10':  (BasicBlock, [2, 2, 2, 2]),
+    '34':  (BasicBlock, [3, 4, 6, 3]),
+    '50':  (Bottleneck, [3, 4, 6, 3]),
+    '101': (Bottleneck, [3, 4, 23, 3]),
+    '152': (Bottleneck, [3, 8, 36, 3]),
+}
+cfgs_cifar = {
+    '20':  [3, 3, 3],
+    '32':  [5, 5, 5],
+    '44':  [7, 7, 7],
+    '56':  [9, 9, 9],
+    '110': [18, 18, 18],
+}
+
+
 def resnet(data='cifar10', **kwargs):
-    num_layers = kwargs.get('num_layers')
-    if data == 'cifar10':
-        if num_layers == 20:
-            return ResNet_CIFAR(BasicBlock, [3, 3, 3], 10)
-        elif num_layers == 32:
-            return ResNet_CIFAR(BasicBlock, [5, 5, 5], 10)
-        elif num_layers == 44:
-            return ResNet_CIFAR(BasicBlock, [7, 7, 7], 10)
-        elif num_layers == 56:
-            return ResNet_CIFAR(BasicBlock, [9, 9, 9], 10)
-        elif num_layers == 110:
-            return ResNet_CIFAR(BasicBlock, [18, 18, 18], 10)
-        else:
-            return None
-    elif data == 'cifar100':
-        if num_layers == 20:
-            return ResNet_CIFAR(BasicBlock, [3, 3, 3], 100)
-        elif num_layers == 32:
-            return ResNet_CIFAR(BasicBlock, [5, 5, 5], 100)
-        elif num_layers == 44:
-            return ResNet_CIFAR(BasicBlock, [7, 7, 7], 100)
-        elif num_layers == 56:
-            return ResNet_CIFAR(BasicBlock, [9, 9, 9], 100)
-        elif num_layers == 110:
-            return ResNet_CIFAR(BasicBlock, [18, 18, 18], 100)
+    num_layers = str(kwargs.get('num_layers'))
+    width_mult = kwargs.get('width_mult')
+    if data in ['cifar10', 'cifar100']:
+        if num_layers in cfgs_cifar.keys():
+            return ResNet_CIFAR(BasicBlock, cfgs_cifar[num_layers], int(data[5:]))
         else:
             return None
     elif data == 'imagenet':
-        if num_layers == 18:
-            return ResNet(BasicBlock, [2, 2, 2, 2], 1000)
-        elif num_layers == 34:
-            return ResNet(BasicBlock, [3, 4, 6, 3], 1000)
-        elif num_layers == 50:
-            return ResNet(Bottleneck, [3, 4, 6, 3], 1000)
-        elif num_layers == 101:
-            return ResNet(Bottleneck, [3, 4, 23, 3], 1000)
-        elif num_layers == 152:
-            return ResNet(Bottleneck, [3, 8, 36, 3], 1000)
+        if num_layers in cfgs.keys():
+            block, layers = cfgs[num_layers]
+            return ResNet(block, layers, 1000)
         else:
             return None
     # TODO:

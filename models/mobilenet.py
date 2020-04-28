@@ -295,11 +295,10 @@ class MobileNet_CIFAR(nn.Module):
         return len(self.cfg)
 
 
-def mobilenet(data='cifar10', width_mult=1.0):
-    if data == 'cifar10':
-        return MobileNet_CIFAR(10, width_mult)
-    elif data == 'cifar100':
-        return MobileNet_CIFAR(100, width_mult)
+def mobilenet(data='cifar10', **kwargs):
+    width_mult = kwargs.get('width_mult')
+    if data in ['cifar10', 'cifar100']:
+        return MobileNet_CIFAR(int(data[5:]), width_mult)
     elif data == 'imagenet':
         return MobileNet(1000, width_mult)
     # TODO:

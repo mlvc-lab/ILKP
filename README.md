@@ -220,7 +220,7 @@ $ rm -f checkpoint/*/*/ckpt_epoch_*.pth
 
 - Update other models
 - Make TinyImageNet dataloader
-- Update ImageNet pretrained model of ShuffleNet/ShuffleNetV2/ResNets
+- Update ImageNet pretrained model of ShuffleNet/VGG
 
 ----------
 
@@ -233,3 +233,4 @@ $ rm -f checkpoint/*/*/ckpt_epoch_*.pth
 - [ShuffleNet GitHub (unofficial)](https://github.com/jaxony/ShuffleNet)
 - [ShuffleNetV2 GitHub (unofficial)](https://github.com/Randl/ShuffleNetV2-pytorch)
 - [PyTorch-CIFAR100 Benchmark list](https://github.com/weiaicunzai/pytorch-cifar100)
+- [VGG-CIFAR GitHub (unofficial)](https://github.com/chengyangfu/pytorch-vgg-cifar10)
