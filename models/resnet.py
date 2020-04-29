@@ -200,34 +200,32 @@ class ResNet(nn.Module):
     def forward(self, x):
         return self._forward_impl(x)
 
+    #TODO: Bottleneck block에도 할 수 있게 바꿔야됨..
     # get convolutional layer
     def get_layer_conv(self, layer_num=0):
-        if layer_num == 0:
-            return self.conv1
-        elif layer_num < (2*len(self.layer1) + 1):
-            layer_num = layer_num - 1
+        if layer_num < (2*len(self.layer1)):
             if layer_num % 2 == 0:
                 return self.layer1[layer_num//2].conv1
             else:
                 return self.layer1[layer_num//2].conv2
-        elif layer_num < (2*len(self.layer1) + 2*len(self.layer2) + 1):
-            layer_num = layer_num - 2*len(self.layer1) - 1
+        elif layer_num < (2*len(self.layer1) + 2*len(self.layer2)):
+            layer_num = layer_num - 2*len(self.layer1)
             if layer_num % 2 == 0:
                 return self.layer2[layer_num//2].conv1
             else:
                 return self.layer2[layer_num//2].conv2
-        elif layer_num < (2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3) + 1):
-            layer_num = layer_num - 2*len(self.layer1) - 2*len(self.layer2) - 1
+        elif layer_num < (2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3)):
+            layer_num = layer_num - 2*len(self.layer1) - 2*len(self.layer2)
             if layer_num % 2 == 0:
                 return self.layer3[layer_num//2].conv1
             else:
                 return self.layer3[layer_num//2].conv2
         elif layer_num < self.get_num_conv_layer():
-            layer_num = layer_num - 2*len(self.layer1) - 2*len(self.layer2) - 1
+            layer_num = layer_num - 2*len(self.layer1) - 2*len(self.layer2) - 2*len(self.layer3)
             if layer_num % 2 == 0:
-                return self.layer3[layer_num//2].conv1
+                return self.layer4[layer_num//2].conv1
             else:
-                return self.layer3[layer_num//2].conv2
+                return self.layer4[layer_num//2].conv2
         else:
             print('Wrong layer number!!')
             exit()
@@ -235,10 +233,6 @@ class ResNet(nn.Module):
     # get weights of convolutional layers
     def get_weights_conv(self, use_cuda=True):
         w_conv = []
-        if use_cuda:
-            w_conv.append(self.conv1.weight.cpu().detach().numpy())
-        else:
-            w_conv.append(self.conv1.weight.detach().numpy())
         for i in range(len(self.layer1)):
             if use_cuda:
                 w_conv.append(self.layer1[i].conv1.weight.cpu().detach().numpy())
@@ -260,6 +254,13 @@ class ResNet(nn.Module):
             else:
                 w_conv.append(self.layer3[i].conv1.weight.detach().numpy())
                 w_conv.append(self.layer3[i].conv2.weight.detach().numpy())
+        for i in range(len(self.layer4)):
+            if use_cuda:
+                w_conv.append(self.layer4[i].conv1.weight.cpu().detach().numpy())
+                w_conv.append(self.layer4[i].conv2.weight.cpu().detach().numpy())
+            else:
+                w_conv.append(self.layer4[i].conv1.weight.detach().numpy())
+                w_conv.append(self.layer4[i].conv2.weight.detach().numpy())
         return w_conv
 
     def set_weights_conv(self, weight, use_cuda=True):
@@ -268,15 +269,9 @@ class ResNet(nn.Module):
             cuda_gpu = 'cuda:' + str(gpuid)
             device = torch.device(cuda_gpu)
 
-        # 1st conv layer
-        if use_cuda:
-            weight_tensor = torch.from_numpy(weight[0]).float().to(device)
-        else:
-            weight_tensor = torch.from_numpy(weight[0]).float()
-        self.conv1.weight.data.copy_(weight_tensor)
         # residual block
         for i in range(len(self.layer1)):
-            k = 2*i + 1
+            k = 2*i
             if use_cuda:
                 weight_tensor_conv1 = torch.from_numpy(weight[k]).float().to(device)
                 weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float().to(device)
@@ -286,7 +281,7 @@ class ResNet(nn.Module):
             self.layer1[i].conv1.weight.data.copy_(weight_tensor_conv1)
             self.layer1[i].conv2.weight.data.copy_(weight_tensor_conv2)
         for i in range(len(self.layer2)):
-            k = 2*i + 1 + 2*len(self.layer1)
+            k = 2*i + 2*len(self.layer1)
             if use_cuda:
                 weight_tensor_conv1 = torch.from_numpy(weight[k]).float().to(device)
                 weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float().to(device)
@@ -296,7 +291,7 @@ class ResNet(nn.Module):
             self.layer2[i].conv1.weight.data.copy_(weight_tensor_conv1)
             self.layer2[i].conv2.weight.data.copy_(weight_tensor_conv2)
         for i in range(len(self.layer3)):
-            k = 2*i + 1 + 2*len(self.layer1) + 2*len(self.layer2)
+            k = 2*i + 2*len(self.layer1) + 2*len(self.layer2)
             if use_cuda:
                 weight_tensor_conv1 = torch.from_numpy(weight[k]).float().to(device)
                 weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float().to(device)
@@ -305,9 +300,19 @@ class ResNet(nn.Module):
                 weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float()
             self.layer3[i].conv1.weight.data.copy_(weight_tensor_conv1)
             self.layer3[i].conv2.weight.data.copy_(weight_tensor_conv2)
+        for i in range(len(self.layer4)):
+            k = 2*i + 2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3)
+            if use_cuda:
+                weight_tensor_conv1 = torch.from_numpy(weight[k]).float().to(device)
+                weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float().to(device)
+            else:
+                weight_tensor_conv1 = torch.from_numpy(weight[k]).float()
+                weight_tensor_conv2 = torch.from_numpy(weight[k+1]).float()
+            self.layer4[i].conv1.weight.data.copy_(weight_tensor_conv1)
+            self.layer4[i].conv2.weight.data.copy_(weight_tensor_conv2)
 
     def get_num_conv_layer(self):
-        return 2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3) + 1
+        return 2*len(self.layer1) + 2*len(self.layer2) + 2*len(self.layer3) + 2*len(self.layer4)
 
 
 class ResNet_CIFAR(nn.Module):

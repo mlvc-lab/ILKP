@@ -9,7 +9,7 @@ import torch
 import numpy as np
 
 import models
-from utils import build_model, load_model
+from utils import load_model
 from data import valid_datasets as dataset_names
 
 
