@@ -551,30 +551,36 @@ def resnet(data='cifar10', **kwargs):
         return None
 
 # TODO:
-'''
-def resnext(data='imagenet', **kwargs):
-    return None
-    # if data == 'cifar10':
-    #     return ResNet_CIFAR(10)
-    # elif data == 'cifar100':
-    #     return ResNet_CIFAR(100)
-    # elif data == 'imagenet':
-    #     return ResNet(1000)
-    # elif data == 'tinyimagenet':
-    #     return ResNet(100)
+# def resnext(data='imagenet', **kwargs):
+#     num_layers = str(kwargs.get('num_layers'))
+#     width_mult = kwargs.get('width_mult')
+#     if data == 'cifar10':
+#         return ResNet_CIFAR(10)
+#     elif data == 'cifar100':
+#         return ResNet_CIFAR(100)
+#     elif data == 'imagenet':
+#         return ResNet(1000)
+#     # TODO:
+#     # elif data == 'tinyimagenet':
+#     #     return ResNet(100)
+#     else:
+#         return None
 
 
-def wideresnet(data='imagenet', **kwargs):
-    return None
-    # if data == 'cifar10':
-    #     return ResNet_CIFAR(10)
-    # elif data == 'cifar100':
-    #     return ResNet_CIFAR(100)
-    # elif data == 'imagenet':
-    #     return ResNet(1000)
-    # elif data == 'tinyimagenet':
-    #     return ResNet(100)
-'''
+# def wideresnet(data='imagenet', **kwargs):
+#     num_layers = str(kwargs.get('num_layers'))
+#     width_mult = kwargs.get('width_mult')
+#     if data == 'cifar10':
+#         return ResNet_CIFAR(10)
+#     elif data == 'cifar100':
+#         return ResNet_CIFAR(100)
+#     elif data == 'imagenet':
+#         return ResNet(1000)
+#     # TODO:
+#     # elif data == 'tinyimagenet':
+#     #     return ResNet(100)
+#     else:
+#         return None
 
 '''
 def resnext50_32x4d(pretrained=False, progress=True, **kwargs):

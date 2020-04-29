@@ -103,7 +103,7 @@ def main():
         if opt.version in ['v2q', 'v2qq']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
-        print('==> Find the most similar kernel in previous layers ' +
+        print('==> Find the most similar kernel in reference layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         new_ckpt_name = find_kernel(model, checkpoint)
         print('===> Save new Checkpoint \'{}\''.format(new_ckpt_name))
