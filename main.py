@@ -149,7 +149,7 @@ def main():
         adjust_learning_rate(optimizer, epoch, opt.lr)
         if opt.retrain:
             if opt.new:
-                if version in ['v2q', 'v2qq']:
+                if version in ['v2q', 'v2qq', 'v2qpq', 'v2qpq']:
                     print('\n==> {}/{} {}-th {}bit retraining'.format(
                         arch_name, opt.dataset, n_retrain, opt.quant_bit))
                 else:
@@ -176,6 +176,10 @@ def main():
                 if version == 'v2q':
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
                     quantize(model, opt.quant_bit)
+                elif version == 'v2qpq':
+                    print('==> {}bit dw and pw Quantization...'.format(opt.quant_bit))
+                    quantize(model, opt.quant_bit)
+                    quantize_pw(model, opt.quant_bit)
                 # every 'opt.save_epoch' epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(version))
@@ -192,7 +196,7 @@ def main():
                 if opt.version == 'v3' or opt.version == 'v3a':
                     print('\n==> {}/{}-new_{}_d{} training'.format(
                         arch_name, opt.dataset, opt.version, opt.bind_size))
-                elif opt.version in ['v2q', 'v2qq']:
+                elif opt.version in ['v2q', 'v2qq', 'v2qpq']:
                     print('\n==> {}/{}-new_{} {}bit training'.format(
                         arch_name, opt.dataset, opt.version, opt.quant_bit))
                 else:
@@ -215,6 +219,10 @@ def main():
                 if opt.version in ['v2q', 'v2qq']:
                     print('===> Quantization...')
                     quantize(model, opt.quant_bit)
+                if opt.version in ['v2qpq']:
+                    print('===> dw and pw Quantization...')
+                    quantize(model, opt.quant_bit)
+                    quantize_pw(model, opt.quant_bit)
                 # every 5 epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
@@ -541,7 +549,7 @@ def find_similar_kernel_n_change(model, version):
                                     if min_diff > diff:
                                         min_diff = diff
                                         ref_idx = v * len(w_conv[ref_layer]) + w
-                        elif version in ['v2', 'v2a', 'v2q', 'v2qq']:
+                        elif version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq']:
                             for v in range(len(w_conv[ref_layer])):
                                 for w in range(len(w_conv[ref_layer][v])):
                                     # find alpha, beta using least squared method every kernel in reference layer
@@ -613,7 +621,7 @@ def find_similar_kernel_n_change(model, version):
                             if min_diff > diff:
                                 min_diff = diff
                                 ref_idx = k
-                    elif version in ['v2', 'v2a', 'v2q', 'v2qq']:
+                    elif version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq']:
                         for k in range(len(w_dwconv[ref_layer])):
                             # find alpha, beta using least squared method every kernel in reference layer
                             mean_cur = np.mean(w_dwconv[i][j][0])
@@ -650,7 +658,7 @@ def find_similar_kernel_n_change(model, version):
                         v = ref_idx // len(w_conv[ref_layer])
                         w = ref_idx % len(w_conv[ref_layer])
                         w_conv[i][j][k] = w_conv[ref_layer][v][w]
-        elif version in ['v2', 'v2a', 'v2q', 'v2qq']:
+        elif version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq']:
             for i in range(start_layer, len(w_conv)):
                 for j in range(len(w_conv[i])):
                     for k in range(len(w_conv[i][j])):
@@ -683,7 +691,7 @@ def find_similar_kernel_n_change(model, version):
                 for j in range(len(w_dwconv[i])):
                     k = idx_all[i-start_layer][j]
                     w_dwconv[i][j] = w_dwconv[ref_layer][k]
-        elif version in ['v2', 'v2a', 'v2q', 'v2qq']:
+        elif version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq']:
             for i in range(start_layer, len(w_dwconv)):
                 for j in range(len(w_dwconv[i])):
                     k, alpha, beta = idx_all[i-start_layer][j]
@@ -760,7 +768,7 @@ def idxtoweight(model, indices, version):
                         v = ref_idx // len(w_conv[ref_layer])
                         w = ref_idx % len(w_conv[ref_layer])
                         w_conv[i][j][k] = w_conv[ref_layer][v][w]
-        elif version in ['v2', 'v2a', 'v2q', 'v2qq']:
+        elif version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq']:
             for i in range(start_layer, len(w_conv)):
                 for j in range(len(w_conv[i])):
                     for k in range(len(w_conv[i][j])):
@@ -793,7 +801,7 @@ def idxtoweight(model, indices, version):
                 for j in range(len(w_dwconv[i])):
                     k = indices[i-start_layer][j]
                     w_dwconv[i][j] = w_dwconv[ref_layer][k]
-        elif version in ['v2', 'v2a', 'v2q', 'v2qq']:
+        elif version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq']:
             for i in range(start_layer, len(w_dwconv)):
                 for j in range(len(w_dwconv[i])):
                     k, alpha, beta = indices[i-start_layer][j]
@@ -887,6 +895,59 @@ def quantize(model, num_bits=8):
             else:
                 model.set_weights_dwconv(w_conv, use_cuda=False)
 
+def quantize_pw(model, num_bits=8):
+    """quantize weights of pointwise covolution kernels
+    """
+    if opt.arch in hasDiffLayersArchs:
+        try:
+            pw_conv = model.module.get_weights_conv(use_cuda=True)
+        except:
+            if opt.cuda:
+                pw_conv = model.get_weights_conv(use_cuda=True)
+            else:
+                pw_conv = model.get_weights_conv(use_cuda=False)
+    else:
+        try:
+            pw_conv = model.module.get_weights_pwconv(use_cuda=True)
+        except:
+            if opt.cuda:
+                pw_conv = model.get_weights_pwconv(use_cuda=True)
+            else:
+                pw_conv = model.get_weights_pwconv(use_cuda=False)
+
+    num_layer = len(pw_conv)
+
+    qmin = -2.**(num_bits - 1.)
+    qmax = 2.**(num_bits -1.) -1.
+
+    if opt.ifl:
+        start_layer = 0
+    else:
+        start_layer = 1
+
+    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
+        min_val = np.amin(pw_conv[i])
+        max_val = np.amax(pw_conv[i])
+        scale = (max_val - min_val) / (qmax - qmin)
+        pw_conv[i] = np.around(np.clip(pw_conv[i] / scale, qmin, qmax))
+        pw_conv[i] = scale * pw_conv[i]
+
+    if opt.arch in hasDiffLayersArchs:
+        try:
+            model.module.set_weights_conv(pw_conv, use_cuda=True)
+        except:
+            if opt.cuda:
+                model.set_weights_conv(pw_conv, use_cuda=True)
+            else:
+                model.set_weights_conv(pw_conv, use_cuda=False)
+    else:
+        try:
+            model.module.set_weights_pwconv(pw_conv, use_cuda=True)
+        except:
+            if opt.cuda:
+                model.set_weights_pwconv(pw_conv, use_cuda=True)
+            else:
+                model.set_weights_pwconv(pw_conv, use_cuda=False)
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
     """quantize alpha/betas
