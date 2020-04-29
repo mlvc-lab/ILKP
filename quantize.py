@@ -8,7 +8,7 @@ import torch
 import numpy as np
 
 import models
-from utils import build_model, load_model
+from utils import load_model
 from data import valid_datasets as dataset_names
 
 
@@ -51,20 +51,19 @@ def main():
     global opt, dir_path, hasDiffLayersArchs
     opt = config()
 
+    arch_name = opt.arch
     hasDiffLayersArchs = ['vgg', 'resnet', 'resnext', 'wideresnet']
     if opt.arch in hasDiffLayersArchs:
-        print('\n=> creating model \'{}\''.format(opt.arch + str(opt.layers)))
-    else:
-        print('\n=> creating model \'{}\''.format(opt.arch))
+        arch_name += str(opt.layers)
 
-    model = build_model(opt)
+    print('\n=> creating model \'{}\''.format(arch_name))
+    model = models.__dict__[opt.arch](data=opt.dataset,
+                                      num_layers=opt.layers, num_groups=opt.groups,
+                                      width_mult=opt.width_mult, batch_norm=opt.bn)
 
     # checkpoint file
     ckpt_dir = pathlib.Path('checkpoint')
-    if opt.arch in hasDiffLayersArchs:
-        dir_path = ckpt_dir / (opt.arch + str(opt.layers)) / opt.dataset
-    else:
-        dir_path = ckpt_dir / opt.arch / opt.dataset
+    dir_path = ckpt_dir / arch_name / opt.dataset
     ckpt_file = dir_path / opt.ckpt
 
     if isfile(ckpt_file):
