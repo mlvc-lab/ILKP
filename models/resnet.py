@@ -515,7 +515,7 @@ class ResNet_CIFAR(nn.Module):
 
 # Model configurations
 cfgs = {
-    '10':  (BasicBlock, [2, 2, 2, 2]),
+    '18':  (BasicBlock, [2, 2, 2, 2]),
     '34':  (BasicBlock, [3, 4, 6, 3]),
     '50':  (Bottleneck, [3, 4, 6, 3]),
     '101': (Bottleneck, [3, 4, 23, 3]),
