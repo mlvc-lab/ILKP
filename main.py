@@ -188,6 +188,9 @@ def main():
                 if opt.quant:
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
                     quantize(model, opt.quant_bit)
+                    if opt.pq:
+                        print('==> {}bit pwconv Quantization...'.format(opt.quant_bit))
+                        quantize_pw(model, opt.quant_bit)
         else:
             if not opt.new:
                 print('\n==> {}/{} training'.format(
