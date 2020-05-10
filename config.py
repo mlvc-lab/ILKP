@@ -85,6 +85,8 @@ def config():
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')
+    parser.add_argument('--pq', action='store_true',
+                        help='pointwise convolution quantization in baseline?')
     parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
     parser.add_argument('--qba', '--quant_bit_a', default=8, type=int, metavar='N', dest='quant_bit_a',

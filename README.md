@@ -7,7 +7,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 ## Requirements
 
 - `python 3.5+`
-- `pytorch 1.0+` 　　　　　(`1.4+` for quantized neural networks (soon..))
+- `pytorch 1.0+`
 - `torchvision 0.4+`
 - `numpy`
 - `requests` (for downloading pretrained checkpoint and imagenet dataset)
@@ -22,9 +22,20 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2a
   - v2q (quantization ver)
   - v2qq (quantization ver with alpha, beta qunatization)
+  - v2qpq (v2q with pwconv quantization)
+  - v2qqpq (v2qq with pwconv quantization)
 - v3
   - v3
   - v3a
+
+----------
+
+## TODO
+
+- Update other models
+- Make TinyImageNet dataloader
+
+----------
 
 ## Number of (Depth-wise) Convolution kernels in Models
 
@@ -213,14 +224,6 @@ $ python main.py cifar10 -a mobilenet -C -g 0 1 2 3 -b 256 -E --ckpt ckpt_best.p
 ``` shell
 $ rm -f checkpoint/*/*/ckpt_epoch_*.pth
 ```
-
-----------
-
-## TODO
-
-- Update other models
-- Make TinyImageNet dataloader
-- Update ImageNet pretrained model of ShuffleNet/VGG
 
 ----------
 

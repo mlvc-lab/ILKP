@@ -103,6 +103,10 @@ def main():
         if opt.version in ['v2q', 'v2qq']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
+        elif version in ['v2qpq', 'v2qqpq']:
+            print('==> {}bit dw and pw Quantization...'.format(opt.quant_bit))
+            quantize(model, opt.quant_bit)
+            quantize_pw(model, opt.quant_bit)
         print('==> Find the most similar kernel in reference layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         new_ckpt_name = find_kernel(model, checkpoint)
@@ -183,7 +187,7 @@ def find_kernel(model, ckpt):
                                     if min_diff > diff:
                                         min_diff = diff
                                         ref_idx = v * len(w_conv[ref_layer]) + w
-                        elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq']:
+                        elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                             for v in range(len(w_conv[ref_layer])):
                                 for w in range(len(w_conv[ref_layer][v])):
                                     # find alpha, beta using least squared method every kernel in reference layer
@@ -255,7 +259,7 @@ def find_kernel(model, ckpt):
                             if min_diff > diff:
                                 min_diff = diff
                                 ref_idx = k
-                    elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq']:
+                    elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                         for k in range(len(w_conv[ref_layer])):
                             # find alpha, beta using least squared method every kernel in reference layer
                             mean_cur = np.mean(w_conv[i][j][0])
@@ -277,7 +281,7 @@ def find_kernel(model, ckpt):
                     idx.append(ref_idx)
                 idx_all.append(idx)
 
-    if opt.version == 'v2qq':
+    if opt.version in ['v2qq', 'v2qqpq']:
         quantize_ab(idx_all, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
     ckpt['idx'] = idx_all
     ckpt['version'] = opt.version
@@ -285,9 +289,9 @@ def find_kernel(model, ckpt):
     new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
     if opt.version in ['v3', 'v3a']:
         new_model_filename += '_d{}'.format(opt.bind_size)
-    elif opt.version in ['v2q', 'v2qq']:
+    elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
         new_model_filename += '_q{}'.format(opt.quant_bit)
-        if opt.version == 'v2qq':
+        if opt.version in ['v2qq', 'v2qqpq']:
             new_model_filename += '{}{}'.format(
                 opt.quant_bit_a, opt.quant_bit_b)
         if opt.ifl:
@@ -393,6 +397,61 @@ def quantize(model, num_bits=8):
         model.set_weights_conv(w_conv, use_cuda=False)
     else:
         model.set_weights_dwconv(w_conv, use_cuda=False)
+
+
+def quantize_pw(model, num_bits=8):
+    """quantize weights of pointwise covolution kernels
+    """
+    if opt.arch in hasDiffLayersArchs:
+        try:
+            pw_conv = model.module.get_weights_conv(use_cuda=True)
+        except:
+            if opt.cuda:
+                pw_conv = model.get_weights_conv(use_cuda=True)
+            else:
+                pw_conv = model.get_weights_conv(use_cuda=False)
+    else:
+        try:
+            pw_conv = model.module.get_weights_pwconv(use_cuda=True)
+        except:
+            if opt.cuda:
+                pw_conv = model.get_weights_pwconv(use_cuda=True)
+            else:
+                pw_conv = model.get_weights_pwconv(use_cuda=False)
+
+    num_layer = len(pw_conv)
+
+    qmin = -2.**(num_bits - 1.)
+    qmax = 2.**(num_bits -1.) -1.
+
+    if opt.ifl:
+        start_layer = 0
+    else:
+        start_layer = 1
+
+    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
+        min_val = np.amin(pw_conv[i])
+        max_val = np.amax(pw_conv[i])
+        scale = (max_val - min_val) / (qmax - qmin)
+        pw_conv[i] = np.around(np.clip(pw_conv[i] / scale, qmin, qmax))
+        pw_conv[i] = scale * pw_conv[i]
+
+    if opt.arch in hasDiffLayersArchs:
+        try:
+            model.module.set_weights_conv(pw_conv, use_cuda=True)
+        except:
+            if opt.cuda:
+                model.set_weights_conv(pw_conv, use_cuda=True)
+            else:
+                model.set_weights_conv(pw_conv, use_cuda=False)
+    else:
+        try:
+            model.module.set_weights_pwconv(pw_conv, use_cuda=True)
+        except:
+            if opt.cuda:
+                model.set_weights_pwconv(pw_conv, use_cuda=True)
+            else:
+                model.set_weights_pwconv(pw_conv, use_cuda=False)
 
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):

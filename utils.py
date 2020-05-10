@@ -57,13 +57,13 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                     file_name += '_pl{}_s{}'.format(
                         opt.pls, opt.save_epoch)
                 file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq']:
+            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version == 'v2qq':
+                if opt.version in ['v2qq', 'v2qqpq']:
                     file_name += '{}{}'.format(
                         opt.quant_bit_a, opt.quant_bit_b)
                 if opt.ifl:
@@ -85,13 +85,13 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                     file_name += '_pl{}_s{}'.format(
                         opt.pls, opt.save_epoch)
                 file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq']:
+            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version == 'v2qq':
+                if opt.version in ['v2qq', 'v2qqpq']:
                     file_name += '{}{}'.format(
                         opt.quant_bit_a, opt.quant_bit_b)
                 if opt.ifl:
@@ -104,6 +104,8 @@ def save_model(state, epoch, is_best, opt, n_retrain):
         else:
             if opt.quant:
                 file_name += '_q{}'.format(opt.quant_bit)
+                if opt.pq:
+                    file_name += '_pq'
                 if opt.ifl:
                     file_name += '_ifl'
 
@@ -139,13 +141,13 @@ def save_summary(summary, opt, n_retrain):
                     file_name += '_pl{}_s{}'.format(
                         opt.pls, opt.save_epoch)
                 file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq']:
+            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 if opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version == 'v2qq':
+                if opt.version in ['v2qq', 'v2qqpq']:
                     file_name += '{}{}'.format(
                         opt.quant_bit_a, opt.quant_bit_b)
                 if opt.ifl:
@@ -158,6 +160,8 @@ def save_summary(summary, opt, n_retrain):
         else:
             if opt.quant:
                 file_name += '_q{}'.format(opt.quant_bit)
+                if opt.pq:
+                    file_name += '_pq'
                 if opt.ifl:
                     file_name += '_ifl'
     else:
@@ -171,13 +175,13 @@ def save_summary(summary, opt, n_retrain):
                     file_name += '_pl{}_s{}'.format(
                         opt.pls, opt.save_epoch)
                 file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq']:
+            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version == 'v2qq':
+                if opt.version in ['v2qq', 'v2qqpq']:
                     file_name += '{}{}'.format(
                         opt.quant_bit_a, opt.quant_bit_b)
                 if opt.ifl:
