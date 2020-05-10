@@ -136,7 +136,7 @@ def save_quantized_model(model, ckpt, num_bits=8):
     else:
         model.set_weights_dwconv(w_conv, use_cuda=False)
         if opt.pq:
-            w_pwconv = model.set_weights_pwconv(use_cuda=False)
+            w_pwconv = model.set_weights_pwconv(w_pwconv, use_cuda=False)
 
     ckpt['model'] = model.state_dict()
 
