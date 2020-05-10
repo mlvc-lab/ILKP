@@ -8,7 +8,7 @@ do
         do
             python3 quantize.py $data -a $model --ckpt ckpt_best.pth --qb $qb --pq -i
             python3 main.py $data -a $model -j 4 -C -g 0 -E --ckpt "ckpt_best_q"$qb"_pq_ifl.pth"
-            python3 main.py $data -a $model -j 4 -C -g 0 1 -b 256 -T --ckpt "ckpt_best_q"$qb"_pq_ifl.pth" --qb $qb --lr 0.01 --pq -i
+            python3 main.py $data -a $model -j 4 -C -g 0 1 -b 256 -T -Q --ckpt "ckpt_best_q"$qb"_pq_ifl.pth" --qb $qb --lr 0.01 --pq -i
             rm -f checkpoint/*/*/ckpt_rt*_q*_pq_ifl_epoch_*.pth
             python3 main.py $data -a $model -j 4 -C -g 0 1 -b 256 -E --ckpt "ckpt_rt1_q"$qb"_pq_ifl_best.pth"
             python3 find_similar_kernel.py $data -a $model --ckpt ckpt_best.pth -v v2qqpq --qb $qb -i
