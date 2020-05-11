@@ -103,7 +103,7 @@ def main():
         if opt.version in ['v2q', 'v2qq']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
-        elif version in ['v2qpq', 'v2qqpq']:
+        elif opt.version in ['v2qpq', 'v2qqpq']:
             print('==> {}bit dw and pw Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
             quantize_pw(model, opt.quant_bit)
@@ -191,19 +191,24 @@ def find_kernel(model, ckpt):
                             for v in range(len(w_conv[ref_layer])):
                                 for w in range(len(w_conv[ref_layer][v])):
                                     # find alpha, beta using least squared method every kernel in reference layer
-                                    mean_cur = np.mean(w_conv[i][j][k])
-                                    mean_ref = np.mean(w_conv[ref_layer][v][w])
+                                    cur = w_conv[i][j][k]
+                                    ref = w_conv[ref_layer][v][w]
+                                    mean_cur = np.mean(cur)
+                                    mean_ref = np.mean(ref)
                                     alpha_numer = 0.0
                                     alpha_denom = 0.0
-                                    for row in range(len(w_conv[i][j][k])):
-                                        for col in range(len(w_conv[i][j][k][row])):
-                                            alpha_numer += ((w_conv[ref_layer][v][w][row][col] - mean_ref) *
-                                                            (w_conv[i][j][k][row][col] - mean_cur))
-                                            alpha_denom += ((w_conv[ref_layer][v][w][row][col] - mean_ref) *
-                                                            (w_conv[ref_layer][v][w][row][col] - mean_ref))
+                                    for row in range(len(cur)):
+                                        for col in range(len(cur[row])):
+                                            alpha_numer += ((ref[row][col] - mean_ref) *
+                                                            (cur[row][col] - mean_cur))
+                                            alpha_denom += ((ref[row][col] - mean_ref) *
+                                                            (ref[row][col] - mean_ref))
                                     alpha = alpha_numer / alpha_denom
+                                    # cur = np.flatten(w_conv[i][j][k])
+                                    # ref = np.flatten(w_conv[ref_layer][v][w])
+                                    # alpha = np.dot(np.dot(np.linalg.inv(np.dot(np.transpose(ref),ref)),np.transpose(ref)),cur)
                                     beta = mean_cur - alpha*mean_ref
-                                    diff = np.sum(np.absolute(alpha*w_conv[ref_layer][v][w]+beta - w_conv[i][j][k]))
+                                    diff = np.sum(np.absolute(alpha*ref+beta - cur))
                                     if min_diff > diff:
                                         idxidx = v * len(w_conv[ref_layer]) + w
                                         min_diff = diff
@@ -262,19 +267,21 @@ def find_kernel(model, ckpt):
                     elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
                         for k in range(len(w_conv[ref_layer])):
                             # find alpha, beta using least squared method every kernel in reference layer
-                            mean_cur = np.mean(w_conv[i][j][0])
-                            mean_ref = np.mean(w_conv[ref_layer][k][0])
+                            cur = w_conv[i][j][0]
+                            ref = w_conv[ref_layer][k][0]
+                            mean_cur = np.mean(cur)
+                            mean_ref = np.mean(ref)
                             alpha_numer = 0.0
                             alpha_denom = 0.0
                             for u in range(3):
                                 for v in range(3):
-                                    alpha_numer += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
-                                                    (w_conv[i][j][0][u][v] - mean_cur))
-                                    alpha_denom += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
-                                                    (w_conv[ref_layer][k][0][u][v] - mean_ref))
+                                    alpha_numer += ((ref[u][v] - mean_ref) *
+                                                    (cur[u][v] - mean_cur))
+                                    alpha_denom += ((ref[u][v] - mean_ref) *
+                                                    (ref[u][v] - mean_ref))
                             alpha = alpha_numer / alpha_denom
                             beta = mean_cur - alpha*mean_ref
-                            diff = np.sum(np.absolute(alpha*w_conv[ref_layer][k][0]+beta - w_conv[i][j][0]))
+                            diff = np.sum(np.absolute(alpha*ref+beta - cur))
                             if min_diff > diff:
                                 min_diff = diff
                                 ref_idx = (k, alpha, beta)
@@ -328,19 +335,21 @@ def weight_analysis(model, ckpt):
             ref_idx = 0
             for k in range(len(w_conv[ref_layer])):
                 # find alpha, beta using least squared method every kernel in reference layer
-                mean_cur = np.mean(w_conv[i][j][0])
-                mean_ref = np.mean(w_conv[ref_layer][k][0])
+                cur = w_conv[i][j][0]
+                ref = w_conv[ref_layer][k][0]
+                mean_cur = np.mean(cur)
+                mean_ref = np.mean(ref)
                 alpha_numer = 0.0
                 alpha_denom = 0.0
                 for u in range(3):
                     for v in range(3):
-                        alpha_numer += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
-                                        (w_conv[i][j][0][u][v] - mean_cur))
-                        alpha_denom += ((w_conv[ref_layer][k][0][u][v] - mean_ref) *
-                                        (w_conv[ref_layer][k][0][u][v] - mean_ref))
+                        alpha_numer += ((ref[u][v] - mean_ref) *
+                                        (cur[u][v] - mean_cur))
+                        alpha_denom += ((ref[u][v] - mean_ref) *
+                                        (ref[u][v] - mean_ref))
                 alpha = alpha_numer / alpha_denom
                 beta = mean_cur - alpha*mean_ref
-                diff = np.sum(np.absolute(alpha*w_conv[ref_layer][k][0]+beta - w_conv[i][j][0]))
+                diff = np.sum(np.absolute(alpha*ref+beta - cur))
                 if min_diff > diff:
                     min_diff = diff
                     ref_idx = k
