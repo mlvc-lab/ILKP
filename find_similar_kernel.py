@@ -412,21 +412,9 @@ def quantize_pw(model, num_bits=8):
     """quantize weights of pointwise covolution kernels
     """
     if opt.arch in hasDiffLayersArchs:
-        try:
-            pw_conv = model.module.get_weights_conv(use_cuda=True)
-        except:
-            if opt.cuda:
-                pw_conv = model.get_weights_conv(use_cuda=True)
-            else:
-                pw_conv = model.get_weights_conv(use_cuda=False)
+        pw_conv = model.get_weights_conv(use_cuda=False)
     else:
-        try:
-            pw_conv = model.module.get_weights_pwconv(use_cuda=True)
-        except:
-            if opt.cuda:
-                pw_conv = model.get_weights_pwconv(use_cuda=True)
-            else:
-                pw_conv = model.get_weights_pwconv(use_cuda=False)
+        pw_conv = model.get_weights_pwconv(use_cuda=False)
 
     num_layer = len(pw_conv)
 
@@ -446,21 +434,9 @@ def quantize_pw(model, num_bits=8):
         pw_conv[i] = scale * pw_conv[i]
 
     if opt.arch in hasDiffLayersArchs:
-        try:
-            model.module.set_weights_conv(pw_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_conv(pw_conv, use_cuda=True)
-            else:
-                model.set_weights_conv(pw_conv, use_cuda=False)
+        model.set_weights_conv(pw_conv, use_cuda=False)
     else:
-        try:
-            model.module.set_weights_pwconv(pw_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_pwconv(pw_conv, use_cuda=True)
-            else:
-                model.set_weights_pwconv(pw_conv, use_cuda=False)
+        model.set_weights_pwconv(pw_conv, use_cuda=False)
 
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
