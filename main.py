@@ -486,11 +486,14 @@ def find_similar_kernel_n_change(model, version):
     else:
         try:
             w_dwconv = model.module.get_weights_dwconv(use_cuda=True)
+            # w_pwconv = model.module.get_weights_pwconv(use_cuda=True)
         except:
             if opt.cuda:
                 w_dwconv = model.get_weights_dwconv(use_cuda=True)
+                # w_pwconv = model.get_weights_pwconv(use_cuda=False)
             else:
                 w_dwconv = model.get_weights_dwconv(use_cuda=False)
+                # w_pwconv = model.get_weights_pwconv(use_cuda=False)
 
     start_layer = 1
     ref_layer = 0
@@ -634,8 +637,8 @@ def find_similar_kernel_n_change(model, version):
                     elif version.find('v2') != -1:
                         for k in range(len(w_dwconv[ref_layer])):
                             # find alpha, beta using least squared method every kernel in reference layer
-                            cur = w_conv[i][j][0]
-                            ref = w_conv[ref_layer][k][0]
+                            cur = w_dwconv[i][j][0]
+                            ref = w_dwconv[ref_layer][k][0]
                             mean_cur = np.mean(cur)
                             mean_ref = np.mean(ref)
                             alpha_numer = 0.0
@@ -699,9 +702,6 @@ def find_similar_kernel_n_change(model, version):
                     for v in range(d):
                         w_conv[i][subvec_idx_j][d*subvec_idx_k+v] =\
                             alpha * concat_kernels_ref[ref_idx+v] + beta
-        else:
-            print('Wrong version! program exit...')
-            exit()
     else:
         if version == 'v1':
             for i in range(start_layer, len(w_dwconv)):
@@ -726,9 +726,6 @@ def find_similar_kernel_n_change(model, version):
                     for v in range(d):
                         w_dwconv[i][d*j+v][0] =\
                             alpha * concat_kernels_ref[ref_idx+v] + beta
-        else:
-            print('Wrong version! program exit...')
-            exit()
 
     if opt.arch in hasDiffLayersArchs:
         try:
@@ -741,11 +738,14 @@ def find_similar_kernel_n_change(model, version):
     else:
         try:
             model.module.set_weights_dwconv(w_dwconv, use_cuda=True)
+            # model.module.set_weights_pwconv(w_pwconv, use_cuda=True)
         except:
             if opt.cuda:
                 model.set_weights_dwconv(w_dwconv, use_cuda=True)
+                # model.set_weights_pwconv(w_pwconv, use_cuda=True)
             else:
                 model.set_weights_dwconv(w_dwconv, use_cuda=False)
+                # model.set_weights_pwconv(w_pwconv, use_cuda=False)
     
     return idx_all
 
@@ -809,9 +809,6 @@ def idxtoweight(model, indices, version):
                     for v in range(d):
                         w_conv[i][subvec_idx_j][d*subvec_idx_k+v] =\
                             alpha * concat_kernels_ref[ref_idx+v] + beta
-        else:
-            print('Wrong version! program exit...')
-            exit()
     else:
         if version == 'v1':
             for i in range(start_layer, len(w_dwconv)):
@@ -836,9 +833,6 @@ def idxtoweight(model, indices, version):
                     for v in range(d):
                         w_dwconv[i][d*j+v][0] =\
                             alpha * concat_kernels_ref[ref_idx+v] + beta
-        else:
-            print('Wrong version! program exit...')
-            exit()
 
     if opt.arch in hasDiffLayersArchs:
         try:
@@ -916,22 +910,13 @@ def quantize(model, num_bits=8):
 def quantize_pw(model, num_bits=8):
     r"""quantize weights of pointwise covolution kernels
     """
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            pw_conv = model.module.get_weights_conv(use_cuda=True)
-        except:
-            if opt.cuda:
-                pw_conv = model.get_weights_conv(use_cuda=True)
-            else:
-                pw_conv = model.get_weights_conv(use_cuda=False)
-    else:
-        try:
-            pw_conv = model.module.get_weights_pwconv(use_cuda=True)
-        except:
-            if opt.cuda:
-                pw_conv = model.get_weights_pwconv(use_cuda=True)
-            else:
-                pw_conv = model.get_weights_pwconv(use_cuda=False)
+    try:
+        pw_conv = model.module.get_weights_pwconv(use_cuda=True)
+    except:
+        if opt.cuda:
+            pw_conv = model.get_weights_pwconv(use_cuda=True)
+        else:
+            pw_conv = model.get_weights_pwconv(use_cuda=False)
 
     num_layer = len(pw_conv)
 
@@ -950,22 +935,13 @@ def quantize_pw(model, num_bits=8):
         pw_conv[i] = np.around(np.clip(pw_conv[i] / scale, qmin, qmax))
         pw_conv[i] = scale * pw_conv[i]
 
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            model.module.set_weights_conv(pw_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_conv(pw_conv, use_cuda=True)
-            else:
-                model.set_weights_conv(pw_conv, use_cuda=False)
-    else:
-        try:
-            model.module.set_weights_pwconv(pw_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_pwconv(pw_conv, use_cuda=True)
-            else:
-                model.set_weights_pwconv(pw_conv, use_cuda=False)
+    try:
+        model.module.set_weights_pwconv(pw_conv, use_cuda=True)
+    except:
+        if opt.cuda:
+            model.set_weights_pwconv(pw_conv, use_cuda=True)
+        else:
+            model.set_weights_pwconv(pw_conv, use_cuda=False)
 
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
