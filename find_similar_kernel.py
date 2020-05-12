@@ -81,10 +81,6 @@ def main():
     if model is None:
         print('==> unavailable model parameters!! exit...\n')
         exit()
-    
-    if opt.version.find('v2') != -1:
-        print('ok')
-    exit()
 
     # checkpoint file
     ckpt_dir = pathlib.Path('checkpoint')
