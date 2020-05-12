@@ -10,6 +10,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 - `pytorch 1.0+`
 - `torchvision 0.4+`
 - `numpy`
+- `tqdm`
 - `requests` (for downloading pretrained checkpoint and imagenet dataset)
 
 ----------
@@ -24,6 +25,8 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2qq (quantization ver with alpha, beta qunatization)
   - v2qpq (v2q with pwconv quantization)
   - v2qqpq (v2qq with pwconv quantization)
+  - v2f (fixed index $k$ during retraining time with v2qqpq)
+  - v2nb (no $\beta$ with v2qqpq)
 - v3
   - v3
   - v3a
@@ -128,10 +131,11 @@ $ ./down_ckpt_all.sh
 
 ```
 usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [-b N] [--lr LR]
-               [--momentum M] [--wd W] [--layers N] [--width-mult WM]
+               [--momentum M] [--wd W] [--layers N] [--bn] [--width-mult WM]
                [--groups N] [-p N] [--ckpt PATH] [-R] [-E] [-C] [-T]
-               [-g GPUIDS [GPUIDS ...]] [--datapath PATH] [-v VER] [-d N] [-N]
-               [-s N] [--nl] [--nls NLS] [--pl] [--pls PLS] [-Q] [--qb N]
+               [-g GPUIDS [GPUIDS ...]] [--datapath PATH] [-v V] [-d N] [-N]
+               [-s N] [--nl] [--nls NLS] [--pl] [--pls PLS] [-Q] [--pq]
+               [--qb N] [--qba N] [--qbb N] [-i]
                DATA
 
 positional arguments:
@@ -141,8 +145,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -a ARCH, --arch ARCH  model architecture: mobilenet | mobilenetv2 | resnet |
-                        resnext | shufflenet | shufflenetv2 | wideresnet
-                        (default: mobilenet)
+                        shufflenet | shufflenetv2 | vgg (default: mobilenet)
   -j N, --workers N     number of data loading workers (default: 8)
   --epochs N            number of total epochs to run (default: 200)
   -b N, --batch-size N  mini-batch size (default: 128), this is the total
@@ -155,6 +158,7 @@ optional arguments:
                         weight decay (default: 5e-4)
   --layers N            number of layers in VGG/ResNet/ResNeXt/WideResNet
                         (default: 16)
+  --bn, --batch-norm    Use batch norm in VGG?
   --width-mult WM       width multiplier to thin a network uniformly at each
                         layer (default: 1.0)
   --groups N            number of groups for ShuffleNet (default: 2)
@@ -169,8 +173,9 @@ optional arguments:
                         GPU IDs for using (Default: 0)
   --datapath PATH       where you want to load/save your dataset? (default:
                         ../data)
-  -v VER, --version VER
-                        find kernel version number (default: none)
+  -v V, --version V     version: v1 | v2 | v2a | v2q | v2qq | v2qpq | v2qqpq |
+                        v2f | v2nb | v3 | v3a (find kernel version (default:
+                        none))
   -d N, --bind-size N   the number of binding channels in convolution
                         (subvector size) on version 3 (v3) (default: 2)
   -N, --new             new method?
@@ -183,8 +188,14 @@ optional arguments:
   --pls PLS, --pl-scale PLS
                         scale factor of pcc_loss
   -Q, --quant           use quantization?
+  --pq                  pointwise convolution quantization in baseline?
   --qb N, --quant-bit N
                         number of bits for quantization (Default: 8)
+  --qba N, --quant_bit_a N
+                        number of bits for quantizing alphas (Default: 8)
+  --qbb N, --quant_bit_b N
+                        number of bits for quantizing betas (Default: 8)
+  -i, --ifl             quantize include first layer?
 ```
 
 ### Training

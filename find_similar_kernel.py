@@ -81,6 +81,10 @@ def main():
     if model is None:
         print('==> unavailable model parameters!! exit...\n')
         exit()
+    
+    if opt.version.find('v2') != -1:
+        print('ok')
+    exit()
 
     # checkpoint file
     ckpt_dir = pathlib.Path('checkpoint')
@@ -106,7 +110,8 @@ def main():
         elif opt.version in ['v2qpq', 'v2qqpq']:
             print('==> {}bit dw and pw Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
-            quantize_pw(model, opt.quant_bit)
+            if not opt.arch in hasDiffLayersArchs:
+                quantize_pw(model, opt.quant_bit)
         print('==> Find the most similar kernel in reference layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         new_ckpt_name = find_kernel(model, checkpoint)
@@ -119,7 +124,7 @@ def main():
 
 
 def find_kernel(model, ckpt):
-    """ find the most similar kernel
+    r"""find the most similar kernel
     """
     if opt.arch in hasDiffLayersArchs:
         w_conv = model.get_weights_conv(use_cuda=False)
@@ -134,7 +139,7 @@ def find_kernel(model, ckpt):
 
     idx_all = []
     if opt.arch in hasDiffLayersArchs:
-        if opt.version == 'v3' or opt.version == 'v3a':
+        if opt.version.find('v3') != -1:
             d = opt.bind_size
             concat_kernels_ref = []
             for j in range(len(w_conv[ref_layer])):
@@ -187,7 +192,7 @@ def find_kernel(model, ckpt):
                                     if min_diff > diff:
                                         min_diff = diff
                                         ref_idx = v * len(w_conv[ref_layer]) + w
-                        elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
+                        elif opt.version.find('v2') != -1:
                             for v in range(len(w_conv[ref_layer])):
                                 for w in range(len(w_conv[ref_layer][v])):
                                     # find alpha, beta using least squared method every kernel in reference layer
@@ -204,10 +209,10 @@ def find_kernel(model, ckpt):
                                             alpha_denom += ((ref[row][col] - mean_ref) *
                                                             (ref[row][col] - mean_ref))
                                     alpha = alpha_numer / alpha_denom
-                                    # cur = np.flatten(w_conv[i][j][k])
-                                    # ref = np.flatten(w_conv[ref_layer][v][w])
-                                    # alpha = np.dot(np.dot(np.linalg.inv(np.dot(np.transpose(ref),ref)),np.transpose(ref)),cur)
-                                    beta = mean_cur - alpha*mean_ref
+                                    if opt.version == 'v2nb':
+                                        beta = 0
+                                    else:
+                                        beta = mean_cur - alpha*mean_ref
                                     diff = np.sum(np.absolute(alpha*ref+beta - cur))
                                     if min_diff > diff:
                                         idxidx = v * len(w_conv[ref_layer]) + w
@@ -216,7 +221,7 @@ def find_kernel(model, ckpt):
                         idx.append(ref_idx)
                 idx_all.append(idx)
     else:
-        if opt.version == 'v3' or opt.version == 'v3a':
+        if opt.version.find('v3') != -1:
             d = opt.bind_size
             concat_kernels_ref = []
             for j in range(len(w_conv[ref_layer])):
@@ -264,7 +269,7 @@ def find_kernel(model, ckpt):
                             if min_diff > diff:
                                 min_diff = diff
                                 ref_idx = k
-                    elif opt.version in ['v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
+                    elif opt.version.find('v2') != -1:
                         for k in range(len(w_conv[ref_layer])):
                             # find alpha, beta using least squared method every kernel in reference layer
                             cur = w_conv[i][j][0]
@@ -280,7 +285,10 @@ def find_kernel(model, ckpt):
                                     alpha_denom += ((ref[u][v] - mean_ref) *
                                                     (ref[u][v] - mean_ref))
                             alpha = alpha_numer / alpha_denom
-                            beta = mean_cur - alpha*mean_ref
+                            if opt.version == 'v2nb':
+                                beta = 0
+                            else:
+                                beta = mean_cur - alpha*mean_ref
                             diff = np.sum(np.absolute(alpha*ref+beta - cur))
                             if min_diff > diff:
                                 min_diff = diff
@@ -288,7 +296,7 @@ def find_kernel(model, ckpt):
                     idx.append(ref_idx)
                 idx_all.append(idx)
 
-    if opt.version in ['v2qq', 'v2qqpq']:
+    if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
         quantize_ab(idx_all, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
     ckpt['idx'] = idx_all
     ckpt['version'] = opt.version
@@ -296,11 +304,14 @@ def find_kernel(model, ckpt):
     new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
     if opt.version in ['v3', 'v3a']:
         new_model_filename += '_d{}'.format(opt.bind_size)
-    elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq']:
+    elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
         new_model_filename += '_q{}'.format(opt.quant_bit)
-        if opt.version in ['v2qq', 'v2qqpq']:
+        if opt.version in ['v2qq', 'v2qqpq', 'v2f']:
             new_model_filename += '{}{}'.format(
                 opt.quant_bit_a, opt.quant_bit_b)
+        elif opt.version == 'v2nb':
+            new_model_filename += '{}'.format(
+                opt.quant_bit_a)
         if opt.ifl:
             new_model_filename += '_ifl'
     new_model_filename += '.pth'
@@ -378,7 +389,7 @@ def weight_analysis(model, ckpt):
 
 
 def quantize(model, num_bits=8):
-    """quantize weights of convolution kernels
+    r"""quantize weights of convolution kernels
     """
     if opt.arch in hasDiffLayersArchs:
         w_conv = model.get_weights_conv(use_cuda=False)
@@ -409,7 +420,7 @@ def quantize(model, num_bits=8):
 
 
 def quantize_pw(model, num_bits=8):
-    """quantize weights of pointwise covolution kernels
+    r"""quantize weights of pointwise covolution kernels
     """
     if opt.arch in hasDiffLayersArchs:
         pw_conv = model.get_weights_conv(use_cuda=False)
@@ -440,7 +451,7 @@ def quantize_pw(model, num_bits=8):
 
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
-    """quantize alpha/betas
+    r"""quantize $\alpha$ and $\beta$
     """
     qmin_a = -2.**(num_bits_a - 1.)
     qmax_a = 2.**(num_bits_a - 1.) - 1.

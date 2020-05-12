@@ -7,8 +7,31 @@ model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
 
+r'''version list
+- v1
+- v2
+  - v2
+  - v2a
+  - v2q (quantization ver)
+  - v2qq (quantization ver with alpha, beta qunatization)
+  - v2qpq (v2q with pwconv quantization)
+  - v2qqpq (v2qq with pwconv quantization)
+  - v2f (fixed index $k$ during retraining time with v2qqpq)
+  - v2nb (no $\beta$ with v2qqpq)
+- v3
+  - v3
+  - v3a
+'''
+versions = [
+     'v1',
+     'v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb',
+     'v3', 'v3a',
+]
+
 
 def config():
+    r"""configuration settings
+    """
     parser = argparse.ArgumentParser(description='KH Research')
     parser.add_argument('dataset', metavar='DATA', default='cifar10',
                         choices=dataset_names,
@@ -63,8 +86,11 @@ def config():
     parser.add_argument('--datapath', default='../data', type=str, metavar='PATH',
                         help='where you want to load/save your dataset? (default: ../data)')
     # for new methods
-    parser.add_argument('-v', '--version', default='', type=str, metavar='VER',
-                        dest='version', help='find kernel version number (default: none)')
+    parser.add_argument('-v', '--version', default='', metavar='V', dest='version',
+                        choices=versions,
+                        help='version: ' +
+                             ' | '.join(versions) +
+                             ' (find kernel version (default: none))')
     parser.add_argument('-d', '--bind-size', default=2, type=int, metavar='N',
                         dest='bind_size',
                         help='the number of binding channels in convolution '
