@@ -471,7 +471,7 @@ def validate(val_loader, model, criterion):
 
     return top1.avg, top5.avg
 
-#TODO: v2nb k fix하고 alpha beta 찾는 방법 코딩
+#TODO: v2f k fix하고 alpha beta 찾는 방법 코딩
 def find_similar_kernel_n_change(model, version):
     r"""find the most similar kernel and change the kernel
     """
@@ -660,8 +660,10 @@ def find_similar_kernel_n_change(model, version):
                     idx.append(ref_idx)
                 idx_all.append(idx)
 
-    if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
+    if opt.version in ['v2qq', 'v2qqpq', 'v2f']:
         quantize_ab(idx_all, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+    elif opt.version == 'v2nb':
+        quantize_alpha(idx_all, num_bits_a=opt.quant_bit_a)
 
     # change idx to kernel
     if opt.arch in hasDiffLayersArchs:
@@ -967,7 +969,7 @@ def quantize_pw(model, num_bits=8):
 
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
-    r"""quantize alpha/betas
+    r"""quantize $\alpha$ and $\beta$
     """
     qmin_a = -2.**(num_bits_a - 1.)
     qmax_a = 2.**(num_bits_a - 1.) - 1.
@@ -993,6 +995,30 @@ def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
         betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
         alphas = scale_a * alphas
         betas = scale_b * betas
+        for j in range(len(indices[i])):
+            indices[i][j] = k[j], alphas[j], betas[j]
+
+
+def quantize_alpha(indices, num_bits_a=8):
+    r"""quantize $\alpha$
+    """
+    qmin_a = -2.**(num_bits_a - 1.)
+    qmax_a = 2.**(num_bits_a - 1.) - 1.
+
+    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
+        k = []
+        alphas = []
+        betas = []
+        for j in range(len(indices[i])):
+            _k, _alpha, _beta = indices[i][j]
+            k.append(_k)
+            alphas.append(_alpha)
+            betas.append(_beta)
+        min_val_a = np.amin(alphas)
+        max_val_a = np.amax(alphas)
+        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
+        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
+        alphas = scale_a * alphas
         for j in range(len(indices[i])):
             indices[i][j] = k[j], alphas[j], betas[j]
 

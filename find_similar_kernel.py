@@ -17,8 +17,16 @@ model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
 
+versions = [
+     'v1',
+     'v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb',
+     'v3', 'v3a',
+]
+
 
 def config():
+    r"""configuration settings
+    """
     parser = argparse.ArgumentParser(description='Find similar kernel')
     parser.add_argument('dataset', metavar='DATA', default='cifar10',
                         choices=dataset_names,
@@ -41,8 +49,12 @@ def config():
                         help='number of groups for ShuffleNet (default: 2)')
     parser.add_argument('--ckpt', default='', type=str, metavar='PATH',
                         help='Path of checkpoint (default: none)')
-    parser.add_argument('-v', '--version', default='', type=str, metavar='VER',
-                        dest='version', help='find kernel version number (default: none)')
+    # for new methods
+    parser.add_argument('-v', '--version', default='', metavar='V', dest='version',
+                        choices=versions,
+                        help='version: ' +
+                             ' | '.join(versions) +
+                             ' (find kernel version (default: none))')
     parser.add_argument('-d', '--bind-size', default=2, type=int, metavar='N',
                         dest='bind_size',
                         help='the number of binding channels in convolution '
@@ -103,7 +115,7 @@ def main():
         if opt.version in ['v2q', 'v2qq']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
-        elif opt.version in ['v2qpq', 'v2qqpq']:
+        elif opt.version in ['v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
             print('==> {}bit dw and pw Quantization...'.format(opt.quant_bit))
             quantize(model, opt.quant_bit)
             if not opt.arch in hasDiffLayersArchs:
@@ -292,8 +304,10 @@ def find_kernel(model, ckpt):
                     idx.append(ref_idx)
                 idx_all.append(idx)
 
-    if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
+    if opt.version in ['v2qq', 'v2qqpq', 'v2f']:
         quantize_ab(idx_all, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+    elif opt.version == 'v2nb':
+        quantize_alpha(idx_all, num_bits_a=opt.quant_bit_a)
     ckpt['idx'] = idx_all
     ckpt['version'] = opt.version
 
@@ -473,6 +487,30 @@ def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
         betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
         alphas = scale_a * alphas
         betas = scale_b * betas
+        for j in range(len(indices[i])):
+            indices[i][j] = k[j], alphas[j], betas[j]
+
+
+def quantize_alpha(indices, num_bits_a=8):
+    r"""quantize $\alpha$
+    """
+    qmin_a = -2.**(num_bits_a - 1.)
+    qmax_a = 2.**(num_bits_a - 1.) - 1.
+
+    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
+        k = []
+        alphas = []
+        betas = []
+        for j in range(len(indices[i])):
+            _k, _alpha, _beta = indices[i][j]
+            k.append(_k)
+            alphas.append(_alpha)
+            betas.append(_beta)
+        min_val_a = np.amin(alphas)
+        max_val_a = np.amax(alphas)
+        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
+        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
+        alphas = scale_a * alphas
         for j in range(len(indices[i])):
             indices[i][j] = k[j], alphas[j], betas[j]
 
