@@ -4,7 +4,8 @@ for data in cifar10 cifar100
 do
     for model in mobilenet mobilenetv2
     do
-        for qb in 8 6 4 2
+        # for qb in 8 6 4 2
+        for qb in 3
         do
             python3 quantize.py $data -a $model --ckpt ckpt_best.pth --qb $qb --pq -i
             python3 main.py $data -a $model -j 4 -C -g 0 -E --ckpt "ckpt_best_q"$qb"_pq_ifl.pth"
