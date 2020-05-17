@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
-from utils import *
+from main_utils import *
 from config import config
 from data import DataLoader
 

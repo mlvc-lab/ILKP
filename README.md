@@ -212,18 +212,6 @@ $ python main.py cifar10 -a mobilenet -C -g 0 1 2 3 -b 256
 $ python main.py cifar10 -a mobilenet -C -g 0 1 2 3 -b 256 -R --ckpt ckpt_epoch_50.pth
 ```
 
-#### Train all networks on every possible datasets
-
-``` shell
-$ ./run.sh
-```
-
-#### Train all networks on CIFAR datasets
-
-``` shell
-$ ./run_cifar.sh
-```
-
 ### Test
 
 ``` shell
