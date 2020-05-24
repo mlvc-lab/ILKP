@@ -156,7 +156,6 @@ optional arguments:
   --bn, --batch-norm    Use batch norm in VGG?
   --width-mult WM       width multiplier to thin a network uniformly at each
                         layer (default: 1.0)
-  --groups N            number of groups for ShuffleNet (default: 2)
   -p N, --print-freq N  print frequency (default: 100)
   --ckpt PATH           Path of checkpoint for resuming/testing or retraining
                         model (Default: none)
