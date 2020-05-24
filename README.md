@@ -101,7 +101,7 @@ $ python3 down_imagenet.py
 
 ## How to download a pretrained Model
 
-The pretrained models of ShuffleNet, ShuffleNetV2 trained on ImegeNet is not available now..  
+The pretrained models of VGG trained on ImegeNet is not available now..  
 All the checkpoint files of ResNets trained on ImageNet are from the official torchvision models.  
 So, if you use that checkpoints, you can't resume right condition..  
 But, you can retrain or apply the MESS using those checkpoints.
@@ -225,10 +225,7 @@ $ rm -f checkpoint/*/*/ckpt_epoch_*.pth
 ## References
 
 - [torchvision models github codes](https://github.com/pytorch/vision/tree/master/torchvision/models)
-- [MobileNet, ShuffleNet and ShuffleNetV2 Cifar GitHub (unofficial)](https://github.com/kuangliu/pytorch-cifar)
+- [MobileNet Cifar GitHub (unofficial)](https://github.com/kuangliu/pytorch-cifar)
 - [MobileNetV2 Cifar GitHub (unofficial)](https://github.com/tinyalpha/mobileNet-v2_cifar10)
-- [ShuffleNet and ShuffleNetV2 GitHub (unofficial)](https://github.com/xingmimfl/pytorch_ShuffleNet_ShuffleNetV2)
-- [ShuffleNet GitHub (unofficial)](https://github.com/jaxony/ShuffleNet)
-- [ShuffleNetV2 GitHub (unofficial)](https://github.com/Randl/ShuffleNetV2-pytorch)
 - [PyTorch-CIFAR100 Benchmark list](https://github.com/weiaicunzai/pytorch-cifar100)
 - [VGG-CIFAR GitHub (unofficial)](https://github.com/chengyangfu/pytorch-vgg-cifar10)
