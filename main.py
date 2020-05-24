@@ -442,17 +442,22 @@ def find_similar_kernel_n_change(model, version):
         indices_pw = find_kernel_pw(model, opt)
 
     if version in ['v2qq', 'v2f']:
+        print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
         quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
     elif version == 'v2nb':
+        print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
         quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
         if version in ['v2qq', 'v2f']:
+            print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
             quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
         elif version == 'v2nb':
+            print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
             quantize_alpha(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     # change idx to kernel
+    print('===> Change indices to weights..')
     idxtoweight(model, indices, version)
 
     return indices
