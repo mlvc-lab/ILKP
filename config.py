@@ -12,13 +12,15 @@ r'''version list
   - v2
   - v2q (quantization ver)
   - v2qq (quantization ver with alpha, beta qunatization)
-  - v2qpq (v2q with pwconv quantization)
-  - v2qqpq (v2qq with pwconv quantization)
   - v2f (fixed index $k$ during retraining time with v2qqpq)
   - v2nb (no $\beta$ with v2qqpq)
+    - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
+  - v2.5
+- v3: rotation, flip, shift
 '''
 versions = [
-    'v2', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb',
+    'v2', 'v2q', 'v2qq', 'v2f', 'v2nb',
+    # 'v3',
 ]
 
 
@@ -85,7 +87,7 @@ def config():
     parser.add_argument('-d', '--bind-size', default=2, type=int, metavar='N',
                         dest='bind_size',
                         help='the number of binding channels in convolution '
-                             '(subvector size) on version 3 (v3) (default: 2)')
+                             '(subvector size) on version 2.5 (v2.5) (default: 2)')
     parser.add_argument('-pwd', '--pw-bind-size', default=8, type=int, metavar='N',
                         dest='pw_bind_size',
                         help='the number of binding channels in pointwise convolution '

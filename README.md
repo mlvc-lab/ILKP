@@ -24,6 +24,8 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2f (fixed index $k$ during retraining time with v2qq)
   - v2nb (no $\beta$ with v2qq)
     - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
+  - v2.5 (old: v3) (binding dwkernels) (현재는 사용 불가)
+- v3: rotation, flip, shift (구현중)
 
 ----------
 
@@ -32,7 +34,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 - Update other models
   - VGG pretrained model
   - ResNext, WideResNet coding
-- 여러가지 flag -> rotation, shift 추가해서 성능확인
+- 여러가지 flag -> rotation, shift 추가해서 성능확인 (v3)
 - Make TinyImageNet dataloader
 
 ----------
@@ -167,10 +169,10 @@ optional arguments:
                         GPU IDs for using (Default: 0)
   --datapath PATH       where you want to load/save your dataset? (default:
                         ../data)
-  -v V, --version V     version: v2 | v2q | v2qq | v2qpq | v2qqpq | v2f | v2nb
+  -v V, --version V     version: v2 | v2q | v2qq | v2f | v2nb
                         (find kernel version (default: none))
   -d N, --bind-size N   the number of binding channels in convolution
-                        (subvector size) on version 3 (v3) (default: 2)
+                        (subvector size) on version 2.5 (v2.5) (default: 2)
   -pwd N, --pw-bind-size N
                         the number of binding channels in pointwise
                         convolution (subvector size) (default: 8)
