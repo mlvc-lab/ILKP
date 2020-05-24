@@ -27,7 +27,6 @@ class MobileNet(nn.Module):
     """Original MobileNet"""
     # (128,2) means conv planes=128, conv stride=2, by default conv stride=1
     cfg = [64, (128,2), 128, (256,2), 256, (512,2), 512, 512, 512, 512, 512, (1024,2), 1024]
-    cfg2 = []
 
     def __init__(self, num_classes=1000, width_mult=1.0):
         super(MobileNet, self).__init__()
@@ -68,7 +67,6 @@ class MobileNet(nn.Module):
             out_planes = int(x * alpha) if isinstance(x, int) else int(x[0] * alpha)
             stride = 1 if isinstance(x, int) else x[1]
             layers.append(Block(in_planes, out_planes, stride))
-            self.cfg2.append(in_planes)
             in_planes = out_planes
         return nn.Sequential(*layers)
 
@@ -163,7 +161,6 @@ class MobileNet_CIFAR(nn.Module):
     """MobileNet for CIFAR-10/100"""
     # (128,2) means conv planes=128, conv stride=2, by default conv stride=1
     cfg = [64, (128,2), 128, (256,2), 256, (512,2), 512, 512, 512, 512, 512, (1024,2), 1024]
-    cfg2 = []
 
     def __init__(self, num_classes=10, width_mult=1.0):
         super(MobileNet_CIFAR, self).__init__()
@@ -204,7 +201,6 @@ class MobileNet_CIFAR(nn.Module):
             out_planes = int(x * alpha) if isinstance(x, int) else int(x[0] * alpha)
             stride = 1 if isinstance(x, int) else x[1]
             layers.append(Block(in_planes, out_planes, stride))
-            self.cfg2.append(in_planes)
             in_planes = out_planes
         return nn.Sequential(*layers)
 

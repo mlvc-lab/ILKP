@@ -8,24 +8,17 @@ model_names = sorted(name for name in models.__dict__
     and callable(models.__dict__[name]))
 
 r'''version list
-- v1
 - v2
   - v2
-  - v2a
   - v2q (quantization ver)
   - v2qq (quantization ver with alpha, beta qunatization)
   - v2qpq (v2q with pwconv quantization)
   - v2qqpq (v2qq with pwconv quantization)
   - v2f (fixed index $k$ during retraining time with v2qqpq)
   - v2nb (no $\beta$ with v2qqpq)
-- v3
-  - v3
-  - v3a
 '''
 versions = [
-     'v1',
-     'v2', 'v2a', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb',
-     'v3', 'v3a',
+    'v2', 'v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb',
 ]
 
 
@@ -95,6 +88,10 @@ def config():
                         dest='bind_size',
                         help='the number of binding channels in convolution '
                              '(subvector size) on version 3 (v3) (default: 2)')
+    parser.add_argument('-pwd', '--pw-bind-size', default=8, type=int, metavar='N',
+                        dest='pw_bind_size',
+                        help='the number of binding channels in pointwise convolution '
+                             '(subvector size) (default: 8)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
     parser.add_argument('-s', '--save-epoch', default=5, type=int, metavar='N',
@@ -111,16 +108,14 @@ def config():
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')
-    parser.add_argument('--pq', action='store_true',
-                        help='pointwise convolution quantization in baseline?')
+    parser.add_argument('--np', action='store_true',
+                        help='no v2-like method in pointwise convolutional layer?')
     parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (Default: 8)')
     parser.add_argument('--qba', '--quant_bit_a', default=8, type=int, metavar='N', dest='quant_bit_a',
                         help='number of bits for quantizing alphas (Default: 8)')
     parser.add_argument('--qbb', '--quant_bit_b', default=8, type=int, metavar='N', dest='quant_bit_b',
                         help='number of bits for quantizing betas (Default: 8)')
-    parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
-                        help='quantize include first layer?')
 
     cfg = parser.parse_args()
     cfg.gpuids = list(map(int, cfg.gpuids))

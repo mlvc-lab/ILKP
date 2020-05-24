@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 import models as models
 from data import valid_datasets as dataset_names
+from utils import hasDiffLayersArchs
 
 
 model_names = sorted(name for name in models.__dict__
@@ -62,16 +63,12 @@ if __name__ == '__main__':
                         help='output filename of pretrained model from our google drive')
     args = parser.parse_args()
 
-    # 'file_id' is 
+    # `file_id` is an id of each file on google drive
     if args.dataset == 'cifar10':
         if args.arch == 'mobilenet':
             file_id = '1vFf4ipUo1ZvQSo17AX_jFMyS3ZVX79lb'
         elif args.arch == 'mobilenetv2':
             file_id = '19qGclWiEdBz40af3O3vd0S1cTq_oNcLM'
-        elif args.arch == 'shufflenet':
-            file_id = '1qG9Dt_GRxecYMCkthXd9_dAJ6Dv6EXop'
-        elif args.arch == 'shufflenetv2':
-            file_id = '1VdlJSXt4PWi6iWZNYDNFZaUaIZgtRavg'
         elif args.arch == 'resnet':
             if args.layers == 20:
                 file_id = '1h4f61kCjK25rhIfwZf6uj-NmPnRrfoBy'
@@ -91,10 +88,6 @@ if __name__ == '__main__':
             file_id = '1F3lztkxgQA5TXFB5-MbW5D3FGA5utC2a'
         elif args.arch == 'mobilenetv2':
             file_id = '1qKI8Ipjs33eBGBWoy4L202Bmuzn4X9TC'
-        elif args.arch == 'shufflenet':
-            file_id = '1TrV7OrUNJ0eIgJNR1tR5JupX8sRhFkZK'
-        elif args.arch == 'shufflenetv2':
-            file_id = '1VcRXdeGYPtwz75Qx_NF5SyXI-yRM3Ivf'
         elif args.arch == 'resnet':
             if args.layers == 20:
                 file_id = '1DtEsqiN5UzMn07nQcGmYfu1cBzpnERm-'
@@ -114,10 +107,6 @@ if __name__ == '__main__':
             file_id = '1qzyIMwH-Nd8wM77ScJmY7CXUhJYzYG2i'
         elif args.arch == 'mobilenetv2':
             file_id = '15FpbDFnVPJSNfljG6DC2HzhgS_Oif1Ab'
-        # elif args.arch == 'shufflenet':
-        #     file_id = ''
-        elif args.arch == 'shufflenetv2':
-            file_id = '1QIjSHCRUqVT5dyWX8GUiJljMhvwgWm4a'
         elif args.arch == 'resnet':
             if args.layers == 18:
                 file_id = '1w7asTlU_ALte-SK2ma3skPgCTBuB2S27'
@@ -135,15 +124,14 @@ if __name__ == '__main__':
     else:
         print('Not prepared yet..\nProgram exit...')
         exit()
-    
-    hasDiffLayersArchs = ['vgg', 'resnet', 'resnext', 'wideresnet']
+
+    arch_name = args.arch
+    if args.arch in hasDiffLayersArchs:
+        arch_name += str(args.layers)
 
     ckpt_dir = pathlib.Path('checkpoint')
-    if args.arch in hasDiffLayersArchs:
-        dir_path = ckpt_dir / (args.arch + str(args.layers)) / args.dataset
-    else:
-        dir_path = ckpt_dir / args.arch / args.dataset
+    dir_path = ckpt_dir / arch_name / args.dataset
     dir_path.mkdir(parents=True, exist_ok=True)
-    destination = dir_path / args.out
 
+    destination = dir_path / args.out
     download_file_from_google_drive(file_id, destination.as_posix())

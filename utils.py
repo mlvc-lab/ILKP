@@ -11,7 +11,21 @@ from collections import OrderedDict
 import models
 
 
+hasDiffLayersArchs = [
+    'resnet', 'resnext', 'wideresnet', 'vgg',
+]
+hasPWConvArchs = [
+    'mobilenet', 'mobilenetv2', 'resnet50', 'resnet101', 'resnet152',
+]
+hasDWConvArchs = [
+    'mobilenet', 'mobilenetv2',
+]
+
+
 def load_model(model, ckpt_file, main_gpu, use_cuda=True):
+    r"""Load model for training, resume training, evaluation,
+    quantization and finding similar kernels for new methods
+    """
     if use_cuda:
         checkpoint = torch.load(ckpt_file, map_location=lambda storage, loc: storage.cuda(main_gpu))
         try:
@@ -38,72 +52,36 @@ def load_model(model, ckpt_file, main_gpu, use_cuda=True):
 
 
 def save_model(state, epoch, is_best, opt, n_retrain):
+    r"""Save the model (checkpoint) at the training time in each epoch
+    """
+    arch_name = opt.arch
+    if opt.arch in hasDiffLayersArchs:
+        arch_name += str(opt.layers)
+
     dir_ckpt = pathlib.Path('checkpoint')
-    if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
-        dir_path = dir_ckpt / (opt.arch + str(opt.layers)) / opt.dataset
-    else:
-        dir_path = dir_ckpt / opt.arch / opt.dataset
+    dir_path = dir_ckpt / arch_name / opt.dataset
     dir_path.mkdir(parents=True, exist_ok=True)
 
     file_name = 'ckpt'
-    if not opt.retrain:
-        if opt.new:
-            file_name += '_new_{}'.format(opt.version)
-            if opt.version == 'v3' or opt.version == 'v3a':
-                if opt.nuc_loss:
-                    file_name += '_nl{}_s{}'.format(
-                        opt.nls, opt.save_epoch)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}_s{}'.format(
-                        opt.pls, opt.save_epoch)
-                file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-                file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
-                    if opt.version == 'v2nb':
-                        file_name += '{}'.format(
-                            opt.quant_bit_a)
-                    else:
-                        file_name += '{}{}'.format(
-                            opt.quant_bit_a, opt.quant_bit_b)
-                if opt.ifl:
-                    file_name += '_ifl'
-            else:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-    else:
+    if opt.retrain:
         file_name += '_rt{}'.format(n_retrain)
         if opt.new:
             file_name += '_{}'.format(opt.version)
-            if opt.version == 'v3' or opt.version == 'v3a':
-                if opt.nuc_loss:
-                    file_name += '_nl{}_s{}'.format(
-                        opt.nls, opt.save_epoch)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}_s{}'.format(
-                        opt.pls, opt.save_epoch)
-                file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
+            if opt.np:
+                file_name += '_np'
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
+                if opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
-                if opt.ifl:
-                    file_name += '_ifl'
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -112,10 +90,29 @@ def save_model(state, epoch, is_best, opt, n_retrain):
         else:
             if opt.quant:
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.pq:
-                    file_name += '_pq'
-                if opt.ifl:
-                    file_name += '_ifl'
+    else:
+        if opt.new:
+            file_name += '_new_{}'.format(opt.version)
+            if opt.np:
+                file_name += '_np'
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+                if opt.nuc_loss:
+                    file_name += '_nl{}'.format(opt.nls)
+                if opt.pcc_loss:
+                    file_name += '_pl{}'.format(opt.pls)
+                file_name += '_q{}'.format(opt.quant_bit)
+                if opt.version in ['v2qq', 'v2f', 'v2nb']:
+                    if opt.version == 'v2nb':
+                        file_name += '{}'.format(
+                            opt.quant_bit_a)
+                    else:
+                        file_name += '{}{}'.format(
+                            opt.quant_bit_a, opt.quant_bit_b)
+            else:
+                if opt.nuc_loss:
+                    file_name += '_nl{}'.format(opt.nls)
+                elif opt.pcc_loss:
+                    file_name += '_pl{}'.format(opt.pls)
 
     file_name_best = deepcopy(file_name) + '_best.pth' # baseline: ckpt_best.pth
     file_name += '_epoch_{}.pth'.format(epoch) # baseline: ckpt_epoch_{}.pth
@@ -127,43 +124,39 @@ def save_model(state, epoch, is_best, opt, n_retrain):
 
 
 def save_summary(summary, opt, n_retrain):
+    r"""Save summary i.e. top-1/5 validation accuracy in each epoch
+    under `summary` directory
+    """
     dir_summary = pathlib.Path('summary')
     dir_path = dir_summary / 'csv'
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    if opt.arch in ['vgg', 'resnet', 'resnext', 'wideresnet']:
-        arch_name = opt.arch+str(opt.layers)
-    else:
-        arch_name = opt.arch
+    arch_name = opt.arch
+    if opt.arch in hasDiffLayersArchs:
+        arch_name += str(opt.layers)
 
     file_name = '{}_{}'.format(arch_name, opt.dataset)
     if opt.retrain:
         file_name += '_rt{}'.format(n_retrain)
         if opt.new:
             file_name += '_{}'.format(opt.version)
-            if opt.version == 'v3' or opt.version == 'v3a':
-                if opt.nuc_loss:
-                    file_name += '_nl{}_s{}'.format(
-                        opt.nls, opt.save_epoch)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}_s{}'.format(
-                        opt.pls, opt.save_epoch)
-                file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
+            if opt.np:
+                file_name += '_np'
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+                if opt.np:
+                    file_name += '_np'
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 if opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
-                if opt.ifl:
-                    file_name += '_ifl'
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -172,36 +165,24 @@ def save_summary(summary, opt, n_retrain):
         else:
             if opt.quant:
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.pq:
-                    file_name += '_pq'
-                if opt.ifl:
-                    file_name += '_ifl'
     else:
         if opt.new:
             file_name += '_new_{}'.format(opt.version)
-            if opt.version == 'v3' or opt.version == 'v3a':
-                if opt.nuc_loss:
-                    file_name += '_nl{}_s{}'.format(
-                        opt.nls, opt.save_epoch)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}_s{}'.format(
-                        opt.pls, opt.save_epoch)
-                file_name += '_d{}'.format(opt.bind_size)
-            elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
+            if opt.np:
+                file_name += '_np'
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2qqpq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
-                if opt.ifl:
-                    file_name += '_ifl'
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -234,6 +215,8 @@ def save_summary(summary, opt, n_retrain):
 
 
 def save_eval(summary):
+    r"""Save evaluation results i.e. top-1/5 test accuracy in the `eval.csv` file
+    """
     dir_summary = pathlib.Path('summary')
     dir_path = dir_summary / 'csv'
     dir_path.mkdir(parents=True, exist_ok=True)
@@ -327,8 +310,69 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def cal_num_weights_in_dwconv(weight):
-    num = 0
-    for i in range(len(weight)):
-        num += len(weight[i])
-    return num
+def get_kernel(model, opt):
+    r"""get all convolutional kernel weights in model for dwkernel
+    """
+    if opt.arch in hasDWConvArchs:
+        try:
+            w_kernel = model.module.get_weights_dwconv(use_cuda=True)
+        except:
+            if opt.cuda:
+                w_kernel = model.get_weights_dwconv(use_cuda=True)
+            else:
+                w_kernel = model.get_weights_dwconv(use_cuda=False)
+    else:
+        try:
+            w_kernel = model.module.get_weights_conv(use_cuda=True)
+        except:
+            if opt.cuda:
+                w_kernel = model.get_weights_conv(use_cuda=True)
+            else:
+                w_kernel = model.get_weights_conv(use_cuda=False)
+    return w_kernel
+
+
+def get_pwkernel(model, opt):
+    r"""get all pointwise convolutional kernel weights in model for pwkernel
+    """
+    try:
+        w_kernel = model.module.get_weights_pwconv(use_cuda=True)
+    except:
+        if opt.cuda:
+            w_kernel = model.get_weights_pwconv(use_cuda=True)
+        else:
+            w_kernel = model.get_weights_pwconv(use_cuda=False)
+    return w_kernel
+
+
+def set_kernel(w_kernel, model, opt):
+    r"""set all convolutional kernel weights in model
+    """
+    if opt.arch in hasDWConvArchs:
+        try:
+            model.module.set_weights_dwconv(w_kernel, use_cuda=True)
+        except:
+            if opt.cuda:
+                model.set_weights_dwconv(w_kernel, use_cuda=True)
+            else:
+                model.set_weights_dwconv(w_kernel, use_cuda=False)
+    else:
+        try:
+            model.module.set_weights_conv(w_kernel, use_cuda=True)
+        except:
+            if opt.cuda:
+                model.set_weights_conv(w_kernel, use_cuda=True)
+            else:
+                model.set_weights_conv(w_kernel, use_cuda=False)
+
+
+def set_pwkernel(w_kernel, model, opt):
+    r"""set all pointwise convolutional kernel weights in model
+    """
+    try:
+        model.module.set_weights_pwconv(w_kernel, use_cuda=True)
+    except:
+        if opt.cuda:
+            model.set_weights_pwconv(w_kernel, use_cuda=True)
+        else:
+            model.set_weights_pwconv(w_kernel, use_cuda=False)

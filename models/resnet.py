@@ -200,7 +200,7 @@ class ResNet(nn.Module):
     def forward(self, x):
         return self._forward_impl(x)
 
-    #TODO: Bottleneck block에도 할 수 있게 바꿔야됨..
+    #TODO: Bottleneck block에도 할 수 있게 바꿔야됨.. (ResNet 큰모델, wideresnet 등..)
     # get convolutional layer
     def get_layer_conv(self, layer_num=0):
         if layer_num < (2*len(self.layer1)):

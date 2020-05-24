@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-for data in cifar10 cifar100
+# for model in mobilenet mobilenetv2 resnet resnext wideresnet vgg
+for model in mobilenet mobilenetv2 resnet
 do
-    for model in mobilenet mobilenetv2 shufflenet shufflenetv2 resnet
+    for data in cifar10 cifar100
     do
         if [ "$model" = "resnet" ]; then
             echo "resnet"
@@ -15,10 +16,6 @@ do
             python3 down_ckpt.py $data -a $model -o ckpt_best.pth
         fi
     done
-done
-
-for model in mobilenet mobilenetv2 shufflenet shufflenetv2 resnet
-do
     if [ "$model" = "resnet" ]; then
         echo "resnet"
         for layer in 18 34 50 101 152

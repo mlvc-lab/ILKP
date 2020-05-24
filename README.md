@@ -1,7 +1,7 @@
 # Memory Efficient Storing Scheme
 
 For my research..
-You can train or test MobileNet/MobileNetV2/ShuffleNet/ShuffleNetV2/ResNet on CIFAR10/CIFAR100/ImageNet.  
+You can train or test MobileNet/MobileNetV2/ResNet/VGG on CIFAR10/CIFAR100/ImageNet.  
 Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and resume on different device environment available.
 
 ## Requirements
@@ -17,25 +17,22 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 
 ## Details of storing version
 
-- v1
 - v2
   - v2
-  - v2a
   - v2q (quantization ver)
-  - v2qq (quantization ver with alpha, beta qunatization)
-  - v2qpq (v2q with pwconv quantization)
-  - v2qqpq (v2qq with pwconv quantization)
-  - v2f (fixed index $k$ during retraining time with v2qqpq)
-  - v2nb (no $\beta$ with v2qqpq)
-- v3
-  - v3
-  - v3a
+  - v2qq (quantization ver with alpha, beta quantization)
+  - v2f (fixed index $k$ during retraining time with v2qq)
+  - v2nb (no $\beta$ with v2qq)
+    - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
 
 ----------
 
 ## TODO
 
 - Update other models
+  - VGG pretrained model
+  - ResNext, WideResNet coding
+- 여러가지 flag -> rotation, shift 추가해서 성능확인
 - Make TinyImageNet dataloader
 
 ----------
@@ -44,31 +41,27 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 
 ### Mobile-friendly models - CIFAR - depth-wise convolution
 
-ShuffleNet -> groups=2 (CIFAR)
-
-| LayerNum |  MobileNet   | MobileNetV2 | ShuffleNet  | ShuffleNetV2 |
-|:--------:|:------------:|:-----------:|:-----------:|:------------:|
-|    0     | (3X3X1)X32   | (3X3X1)X32  | (3X3X1)X50  | (3X3X1)X24   |
-|    1     | (3X3X1)X64   | (3X3X1)X96  | (3X3X1)X50  | (3X3X1)X58   |
-|    2     | (3X3X1)X128  | (3X3X1)X144 | (3X3X1)X50  | (3X3X1)X58   |
-|    3     | (3X3X1)X128  | (3X3X1)X144 | (3X3X1)X50  | (3X3X1)X58   |
-|    4     | (3X3X1)X256  | (3X3X1)X192 | (3X3X1)X100 | (3X3X1)X58   |
-|    5     | (3X3X1)X256  | (3X3X1)X192 | (3X3X1)X100 | (3X3X1)X116  |
-|    6     | (3X3X1)X512  | (3X3X1)X192 | (3X3X1)X100 | (3X3X1)X116  |
-|    7     | (3X3X1)X512  | (3X3X1)X384 | (3X3X1)X100 | (3X3X1)X116  |
-|    8     | (3X3X1)X512  | (3X3X1)X384 | (3X3X1)X100 | (3X3X1)X116  |
-|    9     | (3X3X1)X512  | (3X3X1)X384 | (3X3X1)X100 | (3X3X1)X116  |
-|    10    | (3X3X1)X512  | (3X3X1)X384 | (3X3X1)X100 | (3X3X1)X116  |
-|    11    | (3X3X1)X512  | (3X3X1)X576 | (3X3X1)X100 | (3X3X1)X116  |
-|    12    | (3X3X1)X1024 | (3X3X1)X576 | (3X3X1)X200 | (3X3X1)X116  |
-|    13    |              | (3X3X1)X576 | (3X3X1)X200 | (3X3X1)X116  |
-|    14    |              | (3X3X1)X960 | (3X3X1)X200 | (3X3X1)X232  |
-|    15    |              | (3X3X1)X960 | (3X3X1)X200 | (3X3X1)X232  |
-|    16    |              | (3X3X1)X960 |             | (3X3X1)X232  |
-|    17    |              |             |             | (3X3X1)X232  |
-|    18    |              |             |             | (3X3X1)X232  |
-
-IamgeNet/ShuffleNet -> groups=3
+| LayerNum |  MobileNet   | MobileNetV2 |
+|:--------:|:------------:|:-----------:|
+|    0     | (3X3X1)X32   | (3X3X1)X32  |
+|    1     | (3X3X1)X64   | (3X3X1)X96  |
+|    2     | (3X3X1)X128  | (3X3X1)X144 |
+|    3     | (3X3X1)X128  | (3X3X1)X144 |
+|    4     | (3X3X1)X256  | (3X3X1)X192 |
+|    5     | (3X3X1)X256  | (3X3X1)X192 |
+|    6     | (3X3X1)X512  | (3X3X1)X192 |
+|    7     | (3X3X1)X512  | (3X3X1)X384 |
+|    8     | (3X3X1)X512  | (3X3X1)X384 |
+|    9     | (3X3X1)X512  | (3X3X1)X384 |
+|    10    | (3X3X1)X512  | (3X3X1)X384 |
+|    11    | (3X3X1)X512  | (3X3X1)X576 |
+|    12    | (3X3X1)X1024 | (3X3X1)X576 |
+|    13    |              | (3X3X1)X576 |
+|    14    |              | (3X3X1)X960 |
+|    15    |              | (3X3X1)X960 |
+|    16    |              | (3X3X1)X960 |
+|    17    |              |             |
+|    18    |              |             |
 
 ### ResNets - CIFAR - convolution
 
@@ -133,10 +126,12 @@ $ ./down_ckpt_all.sh
 usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [-b N] [--lr LR]
                [--momentum M] [--wd W] [--layers N] [--bn] [--width-mult WM]
                [--groups N] [-p N] [--ckpt PATH] [-R] [-E] [-C] [-T]
-               [-g GPUIDS [GPUIDS ...]] [--datapath PATH] [-v V] [-d N] [-N]
-               [-s N] [--nl] [--nls NLS] [--pl] [--pls PLS] [-Q] [--pq]
-               [--qb N] [--qba N] [--qbb N] [-i]
+               [-g GPUIDS [GPUIDS ...]] [--datapath PATH] [-v V] [-d N]
+               [-pwd N] [-N] [-s N] [--nl] [--nls NLS] [--pl] [--pls PLS] [-Q]
+               [--np] [--qb N] [--qba N] [--qbb N]
                DATA
+
+KH Research
 
 positional arguments:
   DATA                  dataset: cifar10 | cifar100 | imagenet (default:
@@ -145,7 +140,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -a ARCH, --arch ARCH  model architecture: mobilenet | mobilenetv2 | resnet |
-                        shufflenet | shufflenetv2 | vgg (default: mobilenet)
+                        vgg (default: mobilenet)
   -j N, --workers N     number of data loading workers (default: 8)
   --epochs N            number of total epochs to run (default: 200)
   -b N, --batch-size N  mini-batch size (default: 128), this is the total
@@ -173,11 +168,13 @@ optional arguments:
                         GPU IDs for using (Default: 0)
   --datapath PATH       where you want to load/save your dataset? (default:
                         ../data)
-  -v V, --version V     version: v1 | v2 | v2a | v2q | v2qq | v2qpq | v2qqpq |
-                        v2f | v2nb | v3 | v3a (find kernel version (default:
-                        none))
+  -v V, --version V     version: v2 | v2q | v2qq | v2qpq | v2qqpq | v2f | v2nb
+                        (find kernel version (default: none))
   -d N, --bind-size N   the number of binding channels in convolution
                         (subvector size) on version 3 (v3) (default: 2)
+  -pwd N, --pw-bind-size N
+                        the number of binding channels in pointwise
+                        convolution (subvector size) (default: 8)
   -N, --new             new method?
   -s N, --save-epoch N  number of epochs to save checkpoint and to apply new
                         method
@@ -188,14 +185,13 @@ optional arguments:
   --pls PLS, --pl-scale PLS
                         scale factor of pcc_loss
   -Q, --quant           use quantization?
-  --pq                  pointwise convolution quantization in baseline?
+  --np                  no v2-like method in pointwise convolutional layer?
   --qb N, --quant-bit N
                         number of bits for quantization (Default: 8)
   --qba N, --quant_bit_a N
                         number of bits for quantizing alphas (Default: 8)
   --qbb N, --quant_bit_b N
                         number of bits for quantizing betas (Default: 8)
-  -i, --ifl             quantize include first layer?
 ```
 
 ### Training

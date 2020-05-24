@@ -11,9 +11,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
-from main_utils import *
+from utils import *
 from config import config
 from data import DataLoader
+from find_similar_kernel import find_kernel, find_kernel_pw
+from quantize import quantize, quantize_pw, quantize_ab, quantize_alpha
 
 # for ignore imagenet PIL EXIF UserWarning
 import warnings
@@ -21,14 +23,14 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 
 def main():
-    global opt, hasDiffLayersArchs
+    global opt, arch_name
     opt = config()
 
     if opt.cuda and not torch.cuda.is_available():
         raise Exception('No GPU found, please run without --cuda')
 
+    # set model name
     arch_name = opt.arch
-    hasDiffLayersArchs = ['vgg', 'resnet', 'resnext', 'wideresnet']
     if opt.arch in hasDiffLayersArchs:
         arch_name += str(opt.layers)
 
@@ -103,9 +105,11 @@ def main():
             print('\n===> [ Evaluation ]')
             start_time = time.time()
             acc1, acc5 = validate(val_loader, model, criterion)
-            ckpt_name = '{}-{}-{}'.format(arch_name, opt.dataset, opt.ckpt[:-4])
-            save_eval([ckpt_name, str(acc1)[7:-18], str(acc5)[7:-18]])
             elapsed_time = time.time() - start_time
+            acc1 = round(acc1.item(), 4)
+            acc5 = round(acc5.item(), 4)
+            ckpt_name = '{}-{}-{}'.format(arch_name, opt.dataset, opt.ckpt[:-4])
+            save_eval([ckpt_name, acc1, acc5])
             print('====> {:.2f} seconds to evaluate this model\n'.format(
                 elapsed_time))
             return
@@ -126,13 +130,12 @@ def main():
                 n_retrain = 1
 
             if not opt.quant:
-                version = checkpoint['version']
-                if opt.version != version:
-                    print('version argument is different with saved checkpoint version!')
+                if opt.version != checkpoint['version']:
+                    print('version argument is different with saved checkpoint version!!')
                     exit()
 
                 print('===> Change indices to weights..')
-                idxtoweight(model, checkpoint['idx'], version)
+                idxtoweight(model, checkpoint['idx'], opt.version)
 
             print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
                 opt.ckpt, checkpoint['epoch']))
@@ -149,7 +152,7 @@ def main():
         adjust_learning_rate(optimizer, epoch, opt.lr)
         if opt.retrain:
             if opt.new:
-                if version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                     print('\n==> {}/{} {}-th {}bit retraining'.format(
                         arch_name, opt.dataset, n_retrain, opt.quant_bit))
                 else:
@@ -173,34 +176,28 @@ def main():
             print('====> {:.2f} seconds to train this epoch\n'.format(
                 elapsed_time))
             if opt.new:
-                if version in ['v2q', 'v2qq']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
-                    quantize(model, opt.quant_bit)
-                elif version in ['v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
-                    print('==> {}bit dw and pw Quantization...'.format(opt.quant_bit))
-                    quantize(model, opt.quant_bit)
-                    if opt.arch not in hasDiffLayersArchs:
-                        quantize_pw(model, opt.quant_bit)
+                    quantize(model, opt, opt.quant_bit)
+                    if arch_name in hasPWConvArchs:
+                        quantize_pw(model, opt, opt.quant_bit)
                 # every 'opt.save_epoch' epochs
                 if (epoch+1) % opt.save_epoch == 0:
-                    print('===> Change kernels using {}'.format(version))
-                    idx = find_similar_kernel_n_change(model, version)
+                    print('===> Change kernels using {}'.format(opt.version))
+                    indices = find_similar_kernel_n_change(model, opt.version)
             else:
                 if opt.quant:
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
-                    quantize(model, opt.quant_bit)
-                    if opt.pq:
+                    quantize(model, opt, opt.quant_bit)
+                    if arch_name in hasPWConvArchs:
                         print('==> {}bit pwconv Quantization...'.format(opt.quant_bit))
-                        quantize_pw(model, opt.quant_bit)
+                        quantize_pw(model, opt, opt.quant_bit)
         else:
             if not opt.new:
                 print('\n==> {}/{} training'.format(
                     arch_name, opt.dataset))
             else:
-                if opt.version == 'v3' or opt.version == 'v3a':
-                    print('\n==> {}/{}-new_{}_d{} training'.format(
-                        arch_name, opt.dataset, opt.version, opt.bind_size))
-                elif opt.version in ['v2q', 'v2qq', 'v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                     print('\n==> {}/{}-new_{} {}bit training'.format(
                         arch_name, opt.dataset, opt.version, opt.quant_bit))
                 else:
@@ -220,18 +217,15 @@ def main():
             print('====> {:.2f} seconds to train this epoch\n'.format(
                 elapsed_time))
             if opt.new:
-                if opt.version in ['v2q', 'v2qq']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                     print('===> Quantization...')
-                    quantize(model, opt.quant_bit)
-                if opt.version in ['v2qpq', 'v2qqpq', 'v2f', 'v2nb']:
-                    print('===> dw and pw Quantization...')
-                    quantize(model, opt.quant_bit)
-                    if opt.arch not in hasDiffLayersArchs:
-                        quantize_pw(model, opt.quant_bit)
+                    quantize(model, opt, opt.quant_bit)
+                    if arch_name in hasPWConvArchs:
+                        quantize_pw(model, opt, opt.quant_bit)
                 # every 5 epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
-                    idx = find_similar_kernel_n_change(model, opt.version)
+                    indices = find_similar_kernel_n_change(model, opt.version)
 
         # evaluate on validation set
         print('===> [ Validation ]')
@@ -242,69 +236,36 @@ def main():
         print('====> {:.2f} seconds to validate this epoch\n'.format(
             elapsed_time))
 
+        acc1_train = round(acc1_train.item(), 4)
+        acc5_train = round(acc5_train.item(), 4)
+        acc1_valid = round(acc1_valid.item(), 4)
+        acc5_valid = round(acc5_valid.item(), 4)
+
         # remember best Acc@1 and save checkpoint and summary csv file
-        if opt.retrain:
-            if opt.new:
-                # every 'opt.save_epoch' epochs
-                if (epoch+1) % opt.save_epoch == 0:
-                    is_best = acc1_valid > best_acc1
-                    best_acc1 = max(acc1_valid, best_acc1)
-                    state = {'epoch': epoch + 1,
-                             'model': model.state_dict(),
-                             'optimizer': optimizer.state_dict(),
-                             'n_retrain': n_retrain,
-                             'new': True,
-                             'version': version,
-                             'idx': idx}
-                    summary = [epoch,
-                            str(acc1_train)[7:-18], str(acc5_train)[7:-18],
-                            str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]
-                    save_model(state, epoch, is_best, opt, n_retrain)
-                    save_summary(summary, opt, n_retrain)
-            else:
-                is_best = acc1_valid > best_acc1
-                best_acc1 = max(acc1_valid, best_acc1)
-                state = {'epoch': epoch + 1,
-                         'model': model.state_dict(),
-                         'optimizer': optimizer.state_dict(),
-                         'n_retrain': n_retrain,
-                         'new': False}
-                summary = [epoch,
-                           str(acc1_train)[7:-18], str(acc5_train)[7:-18],
-                           str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]
-                save_model(state, epoch, is_best, opt, n_retrain)
-                save_summary(summary, opt, n_retrain)
+        state = {'epoch': epoch + 1,
+                 'model': model.state_dict(),
+                 'optimizer': optimizer.state_dict(),
+                 'n_retrain': n_retrain}
+        summary = [epoch, acc1_train, acc5_train, acc1_valid, acc5_valid]
+
+        if not opt.new:
+            state['new'] = False
+            state['version'] = ''
+            state['idx'] = []
+            is_best = acc1_valid > best_acc1
+            best_acc1 = max(acc1_valid, best_acc1)
+            save_model(state, epoch, is_best, opt, n_retrain)
+            save_summary(summary, opt, n_retrain)
         else:
-            if not opt.new:
+            # every 'opt.save_epoch' epochs
+            if (epoch+1) % opt.save_epoch == 0:
+                state['new'] = True
+                state['version'] = opt.version
+                state['idx'] = indices
                 is_best = acc1_valid > best_acc1
                 best_acc1 = max(acc1_valid, best_acc1)
-                state = {'epoch': epoch + 1,
-                         'model': model.state_dict(),
-                         'optimizer': optimizer.state_dict(),
-                         'n_retrain': n_retrain,
-                         'new': False}
-                summary = [epoch,
-                           str(acc1_train)[7:-18], str(acc5_train)[7:-18],
-                           str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]
                 save_model(state, epoch, is_best, opt, n_retrain)
                 save_summary(summary, opt, n_retrain)
-            else:
-                # every 'opt.save_epoch' epochs
-                if (epoch+1) % opt.save_epoch == 0:
-                    is_best = acc1_valid > best_acc1
-                    best_acc1 = max(acc1_valid, best_acc1)
-                    state = {'epoch': epoch + 1,
-                             'model': model.state_dict(),
-                             'optimizer': optimizer.state_dict(),
-                             'n_retrain': n_retrain,
-                             'new': True,
-                             'version': opt.version,
-                             'idx': idx}
-                    summary = [epoch,
-                               str(acc1_train)[7:-18], str(acc5_train)[7:-18],
-                               str(acc1_valid)[7:-18], str(acc5_valid)[7:-18]]
-                    save_model(state, epoch, is_best, opt, n_retrain)
-                    save_summary(summary, opt, n_retrain)
 
     avg_train_time = train_time / (opt.epochs-start_epoch)
     avg_valid_time = validate_time / (opt.epochs-start_epoch)
@@ -348,63 +309,15 @@ def train(train_loader, **kwargs):
 
         # compute output
         output = model(input)
+        loss = criterion(output, target)
+        # option 1) add inverse nuclear norm loss
         if opt.nuc_loss:
-            d = opt.bind_size
-            if opt.arch in hasDiffLayersArchs:
-                try:
-                    first_conv = model.module.get_layer_conv(0).weight
-                except:
-                    first_conv = model.get_layer_conv(0).weight
-            else:
-                try:
-                    first_conv = model.module.get_layer_dwconv(0).weight
-                except:
-                    first_conv = model.get_layer_dwconv(0).weight
-            first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
-            for idx in range(0, first_conv.size()[0], d):
-                sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
-                if idx == 0:
-                    first_conv_all = sub_tensor
-                else:
-                    first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
-            inv_nuc_norm_regularity = opt.nls / torch.norm(first_conv_all, p='nuc')
-            loss = criterion(output, target) + inv_nuc_norm_regularity
-        elif opt.pcc_loss:
-            d = opt.bind_size
-            if opt.arch in hasDiffLayersArchs:
-                try:
-                    first_conv = model.module.get_layer_conv(0).weight
-                except:
-                    first_conv = model.get_layer_conv(0).weight
-            else:
-                try:
-                    first_conv = model.module.get_layer_dwconv(0).weight
-                except:
-                    first_conv = model.get_layer_dwconv(0).weight
-            first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
-            sub_tensors = []
-            for idx in range(0, first_conv.size()[0], d):
-                sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
-            sum_abspcc = 0.0
-            for idx_x in range(len(sub_tensors)):
-                for idx_y in range(idx_x+1,len(sub_tensors)):
-                    cov_xy = 0.0
-                    stddev_x = 0.0
-                    stddev_y = 0.0
-                    mean_x = torch.mean(sub_tensors[idx_x])
-                    mean_y = torch.mean(sub_tensors[idx_y])
-                    for idx_i in range(len(sub_tensors[idx_x])):
-                        cov_xy += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_y][idx_i] - mean_y)
-                        stddev_x += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_x][idx_i] - mean_x)
-                        stddev_y += (sub_tensors[idx_y][idx_i] - mean_y)*(sub_tensors[idx_y][idx_i] - mean_y)
-                    stddev_x = torch.sqrt(stddev_x)
-                    stddev_y = torch.sqrt(stddev_y)
-                    pcc_xy = cov_xy / (stddev_x*stddev_y)
-                    sum_abspcc += torch.abs(pcc_xy)
-            abspcc_regularity = opt.pls * sum_abspcc
-            loss = criterion(output, target) + abspcc_regularity
-        else:
-            loss = criterion(output, target)
+            regularizer = new_regularizer(model, 'nuc')
+            loss += regularizer
+        # option 2) add absolute pcc loss
+        if opt.pcc_loss:
+            regularizer = new_regularizer(model, 'pcc')
+            loss += regularizer
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -471,532 +384,129 @@ def validate(val_loader, model, criterion):
 
     return top1.avg, top5.avg
 
+
+def new_regularizer(model, regularization_name='nuc'):
+    r"""add new regularizer
+    """
+    d = opt.bind_size
+    if opt.arch in hasDiffLayersArchs:
+        try:
+            first_conv = model.module.get_layer_conv(0).weight
+        except:
+            first_conv = model.get_layer_conv(0).weight
+    else:
+        try:
+            first_conv = model.module.get_layer_dwconv(0).weight
+        except:
+            first_conv = model.get_layer_dwconv(0).weight
+    first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
+
+    if regularization_name == 'nuc':
+        for idx in range(0, first_conv.size()[0], d):
+            sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
+            if idx == 0:
+                first_conv_all = sub_tensor
+            else:
+                first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
+        regularizer = opt.nls / torch.norm(first_conv_all, p='nuc')
+    elif regularization_name == 'pcc':
+        sub_tensors = []
+        for idx in range(0, first_conv.size()[0], d):
+            sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
+        sum_abspcc = 0.0
+        for idx_x in range(len(sub_tensors)):
+            for idx_y in range(idx_x+1,len(sub_tensors)):
+                cov_xy = 0.0
+                stddev_x = 0.0
+                stddev_y = 0.0
+                mean_x = torch.mean(sub_tensors[idx_x])
+                mean_y = torch.mean(sub_tensors[idx_y])
+                for idx_i in range(len(sub_tensors[idx_x])):
+                    cov_xy += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_y][idx_i] - mean_y)
+                    stddev_x += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_x][idx_i] - mean_x)
+                    stddev_y += (sub_tensors[idx_y][idx_i] - mean_y)*(sub_tensors[idx_y][idx_i] - mean_y)
+                stddev_x = torch.sqrt(stddev_x)
+                stddev_y = torch.sqrt(stddev_y)
+                pcc_xy = cov_xy / (stddev_x*stddev_y)
+                sum_abspcc += torch.abs(pcc_xy)
+        regularizer = opt.pls * sum_abspcc
+
+    return regularizer
+
+
 #TODO: v2f k fix하고 alpha beta 찾는 방법 코딩
 def find_similar_kernel_n_change(model, version):
     r"""find the most similar kernel and change the kernel
     """
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            w_conv = model.module.get_weights_conv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_conv = model.get_weights_conv(use_cuda=True)
-            else:
-                w_conv = model.get_weights_conv(use_cuda=False)
-    else:
-        try:
-            w_dwconv = model.module.get_weights_dwconv(use_cuda=True)
-            # w_pwconv = model.module.get_weights_pwconv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_dwconv = model.get_weights_dwconv(use_cuda=True)
-                # w_pwconv = model.get_weights_pwconv(use_cuda=False)
-            else:
-                w_dwconv = model.get_weights_dwconv(use_cuda=False)
-                # w_pwconv = model.get_weights_pwconv(use_cuda=False)
+    indices = find_kernel(model, opt)
+    if arch_name in hasPWConvArchs and not opt.np:
+        indices_pw = find_kernel_pw(model, opt)
 
-    start_layer = 1
-    ref_layer = 0
-    if version in ['v1', 'v2a', 'v3a']:
-        start_layer = 2
-        ref_layer = 1
-
-    # find the most similar kernel
-    idx_all = []
-    if opt.arch in hasDiffLayersArchs:
-        if version.find('v3') != -1:
-            d = opt.bind_size
-            concat_kernels_ref = []
-            for j in range(len(w_conv[ref_layer])):
-                for k in range(len(w_conv[ref_layer][j])):
-                    concat_kernels_ref.append(w_conv[ref_layer][j][k])
-            num_subvec_ref = len(concat_kernels_ref) // d
-            for i in tqdm(range(start_layer, len(w_conv)), ncols=80, unit='layer'):
-                idx = []
-                num_subvec_cur = (len(w_conv[i])*len(w_conv[i][0])) // d
-                num_subvec_cur_each_kernel = len(w_conv[i][0]) // d
-                for j in range(num_subvec_cur):
-                    subvec_idx_j = j // num_subvec_cur_each_kernel
-                    subvec_idx_k = j % num_subvec_cur_each_kernel
-                    min_diff = math.inf
-                    ref_idx = 0
-                    for u in range(num_subvec_ref):
-                        mean_cur = np.mean(w_conv[i][subvec_idx_j][d*subvec_idx_k:d*subvec_idx_k+d])
-                        mean_ref = np.mean(concat_kernels_ref[d*u:d*(u+1)])
-                        alpha_numer = 0.0
-                        alpha_denom = 0.0
-                        for v in range(d):
-                            for row in range(len(concat_kernels_ref[d*u+v])):
-                                for col in range(len(concat_kernels_ref[d*u+v][row])):
-                                    alpha_numer += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
-                                                    (w_conv[i][subvec_idx_j][d*subvec_idx_k+v][row][col] - mean_cur))
-                                    alpha_denom += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
-                                                    (concat_kernels_ref[d*u+v][row][col] - mean_ref))
-                        alpha = alpha_numer / alpha_denom
-                        beta = mean_cur - alpha*mean_ref
-                        diff = 0.0
-                        for v in range(d):
-                            tmp_diff = alpha*concat_kernels_ref[d*u+v]+beta - w_conv[i][subvec_idx_j][d*subvec_idx_k+v]
-                            diff += np.sum(np.absolute(tmp_diff))
-                        if min_diff > diff:
-                            min_diff = diff
-                            ref_idx = (u, alpha, beta)
-                    idx.append(ref_idx)
-                idx_all.append(idx)
-        else:
-            for i in tqdm(range(start_layer, len(w_conv)), ncols=80, unit='layer'):
-                idx = []
-                for j in range(len(w_conv[i])):
-                    for k in range(len(w_conv[i][j])):
-                        min_diff = math.inf
-                        ref_idx = 0
-                        if version == 'v1':
-                            for v in range(len(w_conv[ref_layer])):
-                                for w in range(len(w_conv[ref_layer][v])):
-                                    diff = np.sum(np.absolute(w_conv[ref_layer][v][w] - w_conv[i][j][k]))
-                                    if min_diff > diff:
-                                        min_diff = diff
-                                        ref_idx = v * len(w_conv[ref_layer]) + w
-                        elif version.find('v2') != -1:
-                            for v in range(len(w_conv[ref_layer])):
-                                for w in range(len(w_conv[ref_layer][v])):
-                                    # find alpha, beta using least squared method every kernel in reference layer
-                                    cur = w_conv[i][j][k]
-                                    ref = w_conv[ref_layer][v][w]
-                                    mean_cur = np.mean(cur)
-                                    mean_ref = np.mean(ref)
-                                    alpha_numer = 0.0
-                                    alpha_denom = 0.0
-                                    for row in range(len(cur)):
-                                        for col in range(len(cur[row])):
-                                            alpha_numer += ((ref[row][col] - mean_ref) *
-                                                            (cur[row][col] - mean_cur))
-                                            alpha_denom += ((ref[row][col] - mean_ref) *
-                                                            (ref[row][col] - mean_ref))
-                                    alpha = alpha_numer / alpha_denom
-                                    if version == 'v2nb':
-                                        beta = 0
-                                    else:
-                                        beta = mean_cur - alpha*mean_ref
-                                    diff = np.sum(np.absolute(alpha*ref+beta - cur))
-                                    if min_diff > diff:
-                                        idxidx = v * len(w_conv[ref_layer]) + w
-                                        min_diff = diff
-                                        ref_idx = (idxidx, alpha, beta)
-                        idx.append(ref_idx)
-                idx_all.append(idx)
-    else:
-        if version.find('v3') != -1:
-            d = opt.bind_size
-            concat_kernels_ref = []
-            for j in range(len(w_dwconv[ref_layer])):
-                for k in range(len(w_dwconv[ref_layer][j])):
-                    concat_kernels_ref.append(w_dwconv[ref_layer][j][k])
-            num_subvec_ref = len(concat_kernels_ref) // d
-            for i in tqdm(range(start_layer, len(w_dwconv)), ncols=80, unit='layer'):
-                idx = []
-                num_subvec_cur = (len(w_dwconv[i])*len(w_dwconv[i][0])) // d
-                for j in range(num_subvec_cur):
-                    min_diff = math.inf
-                    ref_idx = 0
-                    for u in range(num_subvec_ref):
-                        mean_cur = np.mean(w_dwconv[i][d*j:d*j+d][0])
-                        mean_ref = np.mean(concat_kernels_ref[d*u:d*(u+1)])
-                        alpha_numer = 0.0
-                        alpha_denom = 0.0
-                        for v in range(d):
-                            for row in range(len(concat_kernels_ref[d*u+v])):
-                                for col in range(len(concat_kernels_ref[d*u+v][row])):
-                                    alpha_numer += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
-                                                    (w_dwconv[i][d*j+v][0][row][col] - mean_cur))
-                                    alpha_denom += ((concat_kernels_ref[d*u+v][row][col] - mean_ref) *
-                                                    (concat_kernels_ref[d*u+v][row][col] - mean_ref))
-                        alpha = alpha_numer / alpha_denom
-                        beta = mean_cur - alpha*mean_ref
-                        diff = 0.0
-                        for v in range(d):
-                            tmp_diff = alpha*concat_kernels_ref[d*u+v]+beta - w_dwconv[i][d*j+v][0]
-                            diff += np.sum(np.absolute(tmp_diff))
-                        if min_diff > diff:
-                            min_diff = diff
-                            ref_idx = (u, alpha, beta)
-                    idx.append(ref_idx)
-                idx_all.append(idx)
-        else:
-            for i in tqdm(range(start_layer, len(w_dwconv)), ncols=80, unit='layer'):
-                idx = []
-                for j in range(len(w_dwconv[i])):
-                    min_diff = math.inf
-                    ref_idx = 0
-                    if version == 'v1':
-                        for k in range(len(w_dwconv[ref_layer])):
-                            diff = np.sum(np.absolute(w_dwconv[ref_layer][k][0] - w_dwconv[i][j][0]))
-                            if min_diff > diff:
-                                min_diff = diff
-                                ref_idx = k
-                    elif version.find('v2') != -1:
-                        for k in range(len(w_dwconv[ref_layer])):
-                            # find alpha, beta using least squared method every kernel in reference layer
-                            cur = w_dwconv[i][j][0]
-                            ref = w_dwconv[ref_layer][k][0]
-                            mean_cur = np.mean(cur)
-                            mean_ref = np.mean(ref)
-                            alpha_numer = 0.0
-                            alpha_denom = 0.0
-                            for u in range(3):
-                                for v in range(3):
-                                    alpha_numer += ((ref[u][v] - mean_ref) *
-                                                    (cur[u][v] - mean_cur))
-                                    alpha_denom += ((ref[u][v] - mean_ref) *
-                                                    (ref[u][v] - mean_ref))
-                            alpha = alpha_numer / alpha_denom
-                            if opt.version == 'v2nb':
-                                beta = 0
-                            else:
-                                beta = mean_cur - alpha*mean_ref
-                            diff = np.sum(np.absolute(alpha*ref+beta - cur))
-                            if min_diff > diff:
-                                min_diff = diff
-                                ref_idx = (k, alpha, beta)
-                    elif version == 'v3' or version == 'v3a':
-                        pass
-                    idx.append(ref_idx)
-                idx_all.append(idx)
-
-    if opt.version in ['v2qq', 'v2qqpq', 'v2f']:
-        quantize_ab(idx_all, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-    elif opt.version == 'v2nb':
-        quantize_alpha(idx_all, num_bits_a=opt.quant_bit_a)
+    if version in ['v2qq', 'v2f']:
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+    elif version == 'v2nb':
+        quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
+    if arch_name in hasPWConvArchs and not opt.np:
+        if version in ['v2qq', 'v2f']:
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+        elif version == 'v2nb':
+            quantize_alpha(indices_pw, num_bits_a=opt.quant_bit_a)
+        indices = (indices, indices_pw)
 
     # change idx to kernel
-    if opt.arch in hasDiffLayersArchs:
-        if version == 'v1':
-            for i in range(start_layer, len(w_conv)):
-                for j in range(len(w_conv[i])):
-                    for k in range(len(w_conv[i][j])):
-                        ref_idx = idx_all[i-start_layer][j*len(w_conv[i][j])+k]
-                        v = ref_idx // len(w_conv[ref_layer])
-                        w = ref_idx % len(w_conv[ref_layer])
-                        w_conv[i][j][k] = w_conv[ref_layer][v][w]
-        elif version.find('v2') != -1:
-            for i in range(start_layer, len(w_conv)):
-                for j in range(len(w_conv[i])):
-                    for k in range(len(w_conv[i][j])):
-                        ref_idx, alpha, beta = idx_all[i-start_layer][j*len(w_conv[i][j])+k]
-                        v = ref_idx // len(w_conv[ref_layer])
-                        w = ref_idx % len(w_conv[ref_layer])
-                        w_conv[i][j][k] = alpha * w_conv[ref_layer][v][w] + beta
-        elif version.find('v3') != -1:
-            d = opt.bind_size
-            concat_kernels_ref = []
-            for j in range(len(w_conv[ref_layer])):
-                for k in range(len(w_conv[ref_layer][j])):
-                    concat_kernels_ref.append(w_conv[ref_layer][j][k])
-            for i in range(start_layer, len(w_conv)):
-                num_subvec_cur = (len(w_conv[i])*len(w_conv[i][0])) // d
-                num_subvec_cur_each_kernel = len(w_conv[i][0]) // d
-                for j in range(num_subvec_cur):
-                    ref_idx, alpha, beta = idx_all[i-start_layer][j]
-                    subvec_idx_j = j // num_subvec_cur_each_kernel
-                    subvec_idx_k = j % num_subvec_cur_each_kernel
-                    for v in range(d):
-                        w_conv[i][subvec_idx_j][d*subvec_idx_k+v] =\
-                            alpha * concat_kernels_ref[ref_idx+v] + beta
-    else:
-        if version == 'v1':
-            for i in range(start_layer, len(w_dwconv)):
-                for j in range(len(w_dwconv[i])):
-                    k = idx_all[i-start_layer][j]
-                    w_dwconv[i][j] = w_dwconv[ref_layer][k]
-        elif version.find('v2') != -1:
-            for i in range(start_layer, len(w_dwconv)):
-                for j in range(len(w_dwconv[i])):
-                    k, alpha, beta = idx_all[i-start_layer][j]
-                    w_dwconv[i][j] = alpha * w_dwconv[ref_layer][k] + beta
-        elif version.find('v3') != -1:
-            d = opt.bind_size
-            concat_kernels_ref = []
-            for j in range(len(w_dwconv[ref_layer])):
-                for k in range(len(w_dwconv[ref_layer][j])):
-                    concat_kernels_ref.append(w_dwconv[ref_layer][j][k])
-            for i in range(start_layer, len(w_dwconv)):
-                num_subvec_cur = (len(w_dwconv[i])*len(w_dwconv[i][0])) // d
-                for j in range(num_subvec_cur):
-                    ref_idx, alpha, beta = idx_all[i-start_layer][j]
-                    for v in range(d):
-                        w_dwconv[i][d*j+v][0] =\
-                            alpha * concat_kernels_ref[ref_idx+v] + beta
+    idxtoweight(model, indices, version)
 
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            model.module.set_weights_conv(w_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_conv(w_conv, use_cuda=True)
-            else:
-                model.set_weights_conv(w_conv, use_cuda=False)
-    else:
-        try:
-            model.module.set_weights_dwconv(w_dwconv, use_cuda=True)
-            # model.module.set_weights_pwconv(w_pwconv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_dwconv(w_dwconv, use_cuda=True)
-                # model.set_weights_pwconv(w_pwconv, use_cuda=True)
-            else:
-                model.set_weights_dwconv(w_dwconv, use_cuda=False)
-                # model.set_weights_pwconv(w_pwconv, use_cuda=False)
-    
-    return idx_all
+    return indices
 
 
-def idxtoweight(model, indices, version):
+def idxtoweight(model, indices_all, version):
     r"""change indices to weights
     """
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            w_conv = model.module.get_weights_conv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_conv = model.get_weights_conv(use_cuda=True)
-            else:
-                w_conv = model.get_weights_conv(use_cuda=False)
+    w_kernel = get_kernel(model, opt)
+    num_layer = len(w_kernel)
+    if arch_name in hasPWConvArchs and not opt.np:
+        w_pwkernel = get_pwkernel(model, opt)
+        num_pwlayer = len(w_pwkernel)
+
+    if arch_name in hasPWConvArchs and not opt.np:
+        indices, indices_pw = indices_all
     else:
-        try:
-            w_dwconv = model.module.get_weights_dwconv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_dwconv = model.get_weights_dwconv(use_cuda=True)
-            else:
-                w_dwconv = model.get_weights_dwconv(use_cuda=False)
+        indices = indices_all
 
-    start_layer = 1
-    ref_layer = 0
-    if version in ['v1', 'v2a', 'v3a']:
-        start_layer = 2
-        ref_layer = 1
+    ref_layer_num = 0
+    if version.find('v2') != -1:
+        for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+            for j in range(len(w_kernel[i])):
+                for k in range(len(w_kernel[i][j])):
+                    ref_idx, alpha, beta = indices[i-1][j*len(w_kernel[i][j])+k]
+                    v = ref_idx // len(w_kernel[ref_layer_num][0])
+                    w = ref_idx % len(w_kernel[ref_layer_num][0])
+                    w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w] + beta
 
-    if opt.arch in hasDiffLayersArchs:
-        if version == 'v1':
-            for i in range(start_layer, len(w_conv)):
-                for j in range(len(w_conv[i])):
-                    for k in range(len(w_conv[i][j])):
-                        ref_idx = indices[i-start_layer][j*len(w_conv[i][j])+k]
-                        v = ref_idx // len(w_conv[ref_layer])
-                        w = ref_idx % len(w_conv[ref_layer])
-                        w_conv[i][j][k] = w_conv[ref_layer][v][w]
-        elif version.find('v2') != -1:
-            for i in range(start_layer, len(w_conv)):
-                for j in range(len(w_conv[i])):
-                    for k in range(len(w_conv[i][j])):
-                        ref_idx, alpha, beta = indices[i-start_layer][j*len(w_conv[i][j])+k]
-                        v = ref_idx // len(w_conv[ref_layer])
-                        w = ref_idx % len(w_conv[ref_layer])
-                        w_conv[i][j][k] = alpha * w_conv[ref_layer][v][w] + beta
-        elif version.find('v3') != -1:
-            d = opt.bind_size
-            concat_kernels_ref = []
-            for j in range(len(w_conv[ref_layer])):
-                for k in range(len(w_conv[ref_layer][j])):
-                    concat_kernels_ref.append(w_conv[ref_layer][j][k])
-            for i in range(start_layer, len(w_conv)):
-                num_subvec_cur = (len(w_conv[i])*len(w_conv[i][0])) // d
-                num_subvec_cur_each_kernel = len(w_conv[i][0]) // d
-                for j in range(num_subvec_cur):
-                    ref_idx, alpha, beta = indices[i-start_layer][j]
-                    subvec_idx_j = j // num_subvec_cur_each_kernel
-                    subvec_idx_k = j % num_subvec_cur_each_kernel
-                    for v in range(d):
-                        w_conv[i][subvec_idx_j][d*subvec_idx_k+v] =\
-                            alpha * concat_kernels_ref[ref_idx+v] + beta
-    else:
-        if version == 'v1':
-            for i in range(start_layer, len(w_dwconv)):
-                for j in range(len(w_dwconv[i])):
-                    k = indices[i-start_layer][j]
-                    w_dwconv[i][j] = w_dwconv[ref_layer][k]
-        elif version.find('v2') != -1:
-            for i in range(start_layer, len(w_dwconv)):
-                for j in range(len(w_dwconv[i])):
-                    k, alpha, beta = indices[i-start_layer][j]
-                    w_dwconv[i][j] = alpha * w_dwconv[ref_layer][k] + beta
-        elif version.find('v3') != -1:
-            d = opt.bind_size
-            concat_kernels_ref = []
-            for j in range(len(w_dwconv[ref_layer])):
-                for k in range(len(w_dwconv[ref_layer][j])):
-                    concat_kernels_ref.append(w_dwconv[ref_layer][j][k])
-            for i in range(start_layer, len(w_dwconv)):
-                num_subvec_cur = (len(w_dwconv[i])*len(w_dwconv[i][0])) // d
-                for j in range(num_subvec_cur):
-                    ref_idx, alpha, beta = indices[i-start_layer][j]
-                    for v in range(d):
-                        w_dwconv[i][d*j+v][0] =\
-                            alpha * concat_kernels_ref[ref_idx+v] + beta
+    if arch_name in hasPWConvArchs and not opt.np:
+        if version.find('v2') != -1:
+            d = opt.pw_bind_size
+            ref_layer = torch.Tensor(w_pwkernel[ref_layer_num])
+            ref_layer = ref_layer.view(ref_layer.size(0), ref_layer.size(1))
+            ref_layer_slices = None
+            num_slices_per_kernel = ref_layer.size(1) - d + 1
+            for i in range(num_slices_per_kernel):
+                if ref_layer_slices == None:
+                    ref_layer_slices = ref_layer[:,i:i+d]
+                else:
+                    ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:,i:i+d]), dim=1)
+            ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices_per_kernel, d)
+            ref_layer_slices = ref_layer_slices.view(-1, d, 1, 1).numpy()
+            for i in tqdm(range(1, num_pwlayer), ncols=80, unit='layer'):
+                for j in range(len(w_pwkernel[i])):
+                    num_slices = len(w_pwkernel[i][j])//d
+                    for k in range(num_slices):
+                        ref_idx, alpha, beta = indices_pw[i-1][j*num_slices+k]
+                        w_pwkernel[i][j][k*d:(k+1)*d] = alpha * ref_layer_slices[ref_idx] + beta
 
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            model.module.set_weights_conv(w_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_conv(w_conv, use_cuda=True)
-            else:
-                model.set_weights_conv(w_conv, use_cuda=False)
-    else:
-        try:
-            model.module.set_weights_dwconv(w_dwconv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_dwconv(w_dwconv, use_cuda=True)
-            else:
-                model.set_weights_dwconv(w_dwconv, use_cuda=False)
-
-
-def quantize(model, num_bits=8):
-    r"""quantize weights of convolution kernels
-    """
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            w_conv = model.module.get_weights_conv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_conv = model.get_weights_conv(use_cuda=True)
-            else:
-                w_conv = model.get_weights_conv(use_cuda=False)
-    else:
-        try:
-            w_conv = model.module.get_weights_dwconv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_conv = model.get_weights_dwconv(use_cuda=True)
-            else:
-                w_conv = model.get_weights_dwconv(use_cuda=False)
-
-    num_layer = len(w_conv)
-
-    qmin = -2.**(num_bits - 1.)
-    qmax = 2.**(num_bits - 1.) - 1.
-
-    if opt.ifl:
-        start_layer = 0
-    else:
-        start_layer = 1
-
-    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
-        min_val = np.amin(w_conv[i])
-        max_val = np.amax(w_conv[i])
-        scale = (max_val - min_val) / (qmax - qmin)
-        w_conv[i] = np.around(np.clip(w_conv[i] / scale, qmin, qmax))
-        w_conv[i] = scale * w_conv[i]
-
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            model.module.set_weights_conv(w_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_conv(w_conv, use_cuda=True)
-            else:
-                model.set_weights_conv(w_conv, use_cuda=False)
-    else:
-        try:
-            model.module.set_weights_dwconv(w_conv, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_dwconv(w_conv, use_cuda=True)
-            else:
-                model.set_weights_dwconv(w_conv, use_cuda=False)
-
-
-def quantize_pw(model, num_bits=8):
-    r"""quantize weights of pointwise covolution kernels
-    """
-    try:
-        pw_conv = model.module.get_weights_pwconv(use_cuda=True)
-    except:
-        if opt.cuda:
-            pw_conv = model.get_weights_pwconv(use_cuda=True)
-        else:
-            pw_conv = model.get_weights_pwconv(use_cuda=False)
-
-    num_layer = len(pw_conv)
-
-    qmin = -2.**(num_bits - 1.)
-    qmax = 2.**(num_bits -1.) -1.
-
-    if opt.ifl:
-        start_layer = 0
-    else:
-        start_layer = 1
-
-    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
-        min_val = np.amin(pw_conv[i])
-        max_val = np.amax(pw_conv[i])
-        scale = (max_val - min_val) / (qmax - qmin)
-        pw_conv[i] = np.around(np.clip(pw_conv[i] / scale, qmin, qmax))
-        pw_conv[i] = scale * pw_conv[i]
-
-    try:
-        model.module.set_weights_pwconv(pw_conv, use_cuda=True)
-    except:
-        if opt.cuda:
-            model.set_weights_pwconv(pw_conv, use_cuda=True)
-        else:
-            model.set_weights_pwconv(pw_conv, use_cuda=False)
-
-
-def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
-    r"""quantize $\alpha$ and $\beta$
-    """
-    qmin_a = -2.**(num_bits_a - 1.)
-    qmax_a = 2.**(num_bits_a - 1.) - 1.
-    qmin_b = -2.**(num_bits_b - 1.)
-    qmax_b = 2.**(num_bits_b - 1.) - 1.
-
-    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
-        k = []
-        alphas = []
-        betas = []
-        for j in range(len(indices[i])):
-            _k, _alpha, _beta = indices[i][j]
-            k.append(_k)
-            alphas.append(_alpha)
-            betas.append(_beta)
-        min_val_a = np.amin(alphas)
-        max_val_a = np.amax(alphas)
-        min_val_b = np.amin(betas)
-        max_val_b = np.amax(betas)
-        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
-        scale_b = (max_val_b - min_val_b) / (qmax_b - qmin_b)
-        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
-        betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
-        alphas = scale_a * alphas
-        betas = scale_b * betas
-        for j in range(len(indices[i])):
-            indices[i][j] = k[j], alphas[j], betas[j]
-
-
-def quantize_alpha(indices, num_bits_a=8):
-    r"""quantize $\alpha$
-    """
-    qmin_a = -2.**(num_bits_a - 1.)
-    qmax_a = 2.**(num_bits_a - 1.) - 1.
-
-    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
-        k = []
-        alphas = []
-        betas = []
-        for j in range(len(indices[i])):
-            _k, _alpha, _beta = indices[i][j]
-            k.append(_k)
-            alphas.append(_alpha)
-            betas.append(_beta)
-        min_val_a = np.amin(alphas)
-        max_val_a = np.amax(alphas)
-        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
-        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
-        alphas = scale_a * alphas
-        for j in range(len(indices[i])):
-            indices[i][j] = k[j], alphas[j], betas[j]
+    set_kernel(w_kernel, model, opt)
+    if arch_name in hasPWConvArchs and not opt.np:
+        set_pwkernel(w_pwkernel, model, opt)
 
 
 if __name__ == '__main__':

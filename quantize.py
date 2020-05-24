@@ -8,55 +8,21 @@ import torch
 import numpy as np
 
 import models
-from utils import load_model
-from data import valid_datasets as dataset_names
-
-
-model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
-
-
-def config():
-    parser = argparse.ArgumentParser(description='Linear quantization')
-    parser.add_argument('dataset', metavar='DATA', default='cifar10',
-                        choices=dataset_names,
-                        help='dataset: ' +
-                             ' | '.join(dataset_names) +
-                             ' (default: cifar10)')
-    parser.add_argument('-a', '--arch', metavar='ARCH', default='mobilenet',
-                        choices=model_names,
-                        help='model architecture: ' +
-                             ' | '.join(model_names) +
-                             ' (default: mobilenet)')
-    parser.add_argument('--layers', default=16, type=int, metavar='N',
-                        help='number of layers in VGG/ResNet/ResNeXt/WideResNet (default: 16)')
-    parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
-                        help='Use batch norm in VGG?')
-    parser.add_argument('--width-mult', default=1.0, type=float, metavar='WM',
-                        help='width multiplier to thin a network '
-                             'uniformly at each layer (default: 1.0)')
-    parser.add_argument('--groups', default=2, type=int, metavar='N',
-                        help='number of groups for ShuffleNet (default: 2)')
-    parser.add_argument('--ckpt', default='', type=str, metavar='PATH',
-                        help='Path of checkpoint (Default: none)')
-    parser.add_argument('--qb', '--quant_bit', default=8, type=int, metavar='N', dest='quant_bit',
-                        help='number of bits for quantization (Default: 8)')
-    parser.add_argument('--pq', action='store_true',
-                        help='pointwise convolution quantization in baseline?')
-    parser.add_argument('-i', '--ifl', dest='ifl', action='store_true',
-                        help='include first layer?')
-
-    cfg = parser.parse_args()
-    return cfg
+from config import config
+from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, get_kernel, get_pwkernel, set_kernel, set_pwkernel
 
 
 def main():
-    global opt, dir_path, hasDiffLayersArchs
+    global opt, arch_name, dir_path
     opt = config()
 
+    # quantization don't need cuda
+    if opt.cuda:
+        print('==> just apply linear quantization don\'t need cuda option. exit..\n')
+        exit()
+
+    # set model name
     arch_name = opt.arch
-    hasDiffLayersArchs = ['vgg', 'resnet', 'resnext', 'wideresnet']
     if opt.arch in hasDiffLayersArchs:
         arch_name += str(opt.layers)
 
@@ -64,6 +30,10 @@ def main():
     model = models.__dict__[opt.arch](data=opt.dataset,
                                       num_layers=opt.layers, num_groups=opt.groups,
                                       width_mult=opt.width_mult, batch_norm=opt.bn)
+
+    if model is None:
+        print('==> unavailable model parameters!! exit...\n')
+        exit()
 
     # checkpoint file
     ckpt_dir = pathlib.Path('checkpoint')
@@ -84,72 +54,116 @@ def main():
     else:
         print('==> no Checkpoint found at \'{}\''.format(
                     opt.ckpt))
-        return
+        exit()
 
 
 def save_quantized_model(model, ckpt, num_bits=8):
     """save quantized model"""
-    if opt.arch in hasDiffLayersArchs:
-        w_conv = model.get_weights_conv(use_cuda=False)
-    else:
-        w_conv = model.get_weights_dwconv(use_cuda=False)
-        if opt.pq:
-            w_pwconv = model.get_weights_pwconv(use_cuda=False)
-
-    num_layer = len(w_conv)
-
-    qmin = -2.**(num_bits - 1.)
-    qmax = 2.**(num_bits - 1.) - 1.
-
-    if opt.ifl:
-        start_layer = 0
-    else:
-        start_layer = 1
-
-    for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
-        min_val = np.amin(w_conv[i])
-        max_val = np.amax(w_conv[i])
-        scale = (max_val - min_val) / (qmax - qmin)
-        w_conv[i] = np.around(np.clip(w_conv[i] / scale, qmin, qmax))
-        w_conv[i] = scale * w_conv[i]
-    
-    if opt.pq:
-        num_layer = len(w_pwconv)
-
-        qmin = -2.**(num_bits - 1.)
-        qmax = 2.**(num_bits - 1.) - 1.
-
-        if opt.ifl:
-            start_layer = 0
-        else:
-            start_layer = 1
-
-        for i in tqdm(range(start_layer, num_layer), ncols=80, unit='layer'):
-            min_val = np.amin(w_pwconv[i])
-            max_val = np.amax(w_pwconv[i])
-            scale = (max_val - min_val) / (qmax - qmin)
-            w_pwconv[i] = np.around(np.clip(w_pwconv[i] / scale, qmin, qmax))
-            w_pwconv[i] = scale * w_pwconv[i]
-
-    if opt.arch in hasDiffLayersArchs:
-        model.set_weights_conv(w_conv, use_cuda=False)
-    else:
-        model.set_weights_dwconv(w_conv, use_cuda=False)
-        if opt.pq:
-            w_pwconv = model.set_weights_pwconv(w_pwconv, use_cuda=False)
+    quantize(model, opt, num_bits=num_bits)
+    if arch_name in hasPWConvArchs:
+        quantize_pw(model, opt, num_bits=num_bits)
 
     ckpt['model'] = model.state_dict()
 
     new_model_filename = '{}_q{}'.format(opt.ckpt[:-4], opt.quant_bit)
-    if opt.pq:
-        new_model_filename += '_pq'
-    if opt.ifl:
-        new_model_filename += '_ifl'
     new_model_filename += '.pth'
     model_file = dir_path / new_model_filename
 
     torch.save(ckpt, model_file)
     return new_model_filename
+
+
+def quantize(model, opt, num_bits=8):
+    r"""quantize weights of convolution kernels
+    """
+    w_kernel = get_kernel(model, opt)
+    num_layer = len(w_kernel)
+
+    qmin = -2.**(num_bits - 1.)
+    qmax = 2.**(num_bits - 1.) - 1.
+
+    for i in tqdm(range(num_layer), ncols=80, unit='layer'):
+        min_val = np.amin(w_kernel[i])
+        max_val = np.amax(w_kernel[i])
+        scale = (max_val - min_val) / (qmax - qmin)
+        w_kernel[i] = np.around(np.clip(w_kernel[i] / scale, qmin, qmax))
+        w_kernel[i] = scale * w_kernel[i]
+    
+    set_kernel(w_kernel, model, opt)
+
+
+def quantize_pw(model, opt, num_bits=8):
+    r"""quantize weights of pointwise covolution kernels
+    """
+    w_kernel = get_pwkernel(model, opt)
+    num_layer = len(w_kernel)
+
+    qmin = -2.**(num_bits - 1.)
+    qmax = 2.**(num_bits -1.) -1.
+
+    for i in tqdm(range(num_layer), ncols=80, unit='layer'):
+        min_val = np.amin(w_kernel[i])
+        max_val = np.amax(w_kernel[i])
+        scale = (max_val - min_val) / (qmax - qmin)
+        w_kernel[i] = np.around(np.clip(w_kernel[i] / scale, qmin, qmax))
+        w_kernel[i] = scale * w_kernel[i]
+    
+    set_pwkernel(w_kernel, model, opt)
+
+
+def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
+    r"""quantize $\alpha$ and $\beta$
+    """
+    qmin_a = -2.**(num_bits_a - 1.)
+    qmax_a = 2.**(num_bits_a - 1.) - 1.
+    qmin_b = -2.**(num_bits_b - 1.)
+    qmax_b = 2.**(num_bits_b - 1.) - 1.
+
+    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
+        k = []
+        alphas = []
+        betas = []
+        for j in range(len(indices[i])):
+            _k, _alpha, _beta = indices[i][j]
+            k.append(_k)
+            alphas.append(_alpha)
+            betas.append(_beta)
+        min_val_a = np.amin(alphas)
+        max_val_a = np.amax(alphas)
+        min_val_b = np.amin(betas)
+        max_val_b = np.amax(betas)
+        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
+        scale_b = (max_val_b - min_val_b) / (qmax_b - qmin_b)
+        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
+        betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
+        alphas = scale_a * alphas
+        betas = scale_b * betas
+        for j in range(len(indices[i])):
+            indices[i][j] = k[j], alphas[j], betas[j]
+
+
+def quantize_alpha(indices, num_bits_a=8):
+    r"""quantize $\alpha$
+    """
+    qmin_a = -2.**(num_bits_a - 1.)
+    qmax_a = 2.**(num_bits_a - 1.) - 1.
+
+    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
+        k = []
+        alphas = []
+        betas = []
+        for j in range(len(indices[i])):
+            _k, _alpha, _beta = indices[i][j]
+            k.append(_k)
+            alphas.append(_alpha)
+            betas.append(_beta)
+        min_val_a = np.amin(alphas)
+        max_val_a = np.amax(alphas)
+        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
+        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
+        alphas = scale_a * alphas
+        for j in range(len(indices[i])):
+            indices[i][j] = k[j], alphas[j], betas[j]
 
 
 if __name__ == '__main__':
