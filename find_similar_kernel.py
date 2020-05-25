@@ -93,7 +93,10 @@ def find_kernel(model, opt):
     ref_layer_num = 0
     idx_all = []
 
-    ref_layer = torch.Tensor(w_kernel[ref_layer_num])
+    if opt.arch == 'vgg':
+        ref_layer = torch.Tensor(w_kernel[ref_layer_num]).cuda()
+    else:
+        ref_layer = torch.Tensor(w_kernel[ref_layer_num])
     # change kernels to dw-kernel
     if opt.arch in hasDiffLayersArchs:
         ref_layer = ref_layer.view(-1, 9)
@@ -106,7 +109,10 @@ def find_kernel(model, opt):
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
-        cur_weight = torch.Tensor(w_kernel[i])
+        if opt.arch == 'vgg':
+            cur_weight = torch.Tensor(w_kernel[i]).cuda()
+        else:
+            cur_weight = torch.Tensor(w_kernel[i])
         # change kernels to dw-kernel
         if opt.arch in hasDiffLayersArchs:
             cur_weight = cur_weight.view(-1, 9)
@@ -125,13 +131,22 @@ def find_kernel(model, opt):
             residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
                 cur_weight[j].expand_as(ref_layer)
             residual_mat = residual_mat.abs().sum(dim=1)
-            k = deepcopy(residual_mat.argmin().item())
-            alpha = deepcopy(alphas[0][k].item())
-            beta = deepcopy(betas[0][k].item())
+            if opt.arch == 'vgg':
+                k = deepcopy(residual_mat.argmin().cpu().item())
+                alpha = deepcopy(alphas[0][k].cpu().item())
+                beta = deepcopy(betas[0][k].cpu().item())
+            else:
+                k = deepcopy(residual_mat.argmin().item())
+                alpha = deepcopy(alphas[0][k].item())
+                beta = deepcopy(betas[0][k].item())
             ref_idx = (k, alpha, beta)
             idx.append(ref_idx)
             del alphas, betas, residual_mat
+            if opt.arch == 'vgg':
+                torch.cuda.empty_cache()
         del cur_weight, cur_norm, cur_mean, cur_length
+        if opt.arch == 'vgg':
+            torch.cuda.empty_cache()
         idx_all.append(idx)
     del ref_layer, ref_mean, ref_norm, ref_norm_sq
 
