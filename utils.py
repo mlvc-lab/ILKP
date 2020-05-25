@@ -283,13 +283,17 @@ class ProgressMeter(object):
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
 
 
-def adjust_learning_rate(optimizer, epoch, opt_lr):
+def adjust_learning_rate(optimizer, epoch, opt):
     r"""Sets the learning rate, decayed rate of 0.98 every epoch
     """
-    lr = opt_lr * (0.98**epoch)
-
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    if opt.arch == 'vgg':
+        lr = opt.lr * (0.5 ** (epoch // 30))
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+    else:
+        lr = opt.lr * (0.98**epoch)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
 
 def accuracy(output, target, topk=(1,)):

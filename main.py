@@ -148,7 +148,7 @@ def main():
     train_time = 0.0
     validate_time = 0.0
     for epoch in range(start_epoch, opt.epochs):
-        adjust_learning_rate(optimizer, epoch, opt.lr)
+        adjust_learning_rate(optimizer, epoch, opt)
         if opt.retrain:
             if opt.new:
                 if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
