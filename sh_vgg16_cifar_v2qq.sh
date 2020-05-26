@@ -19,7 +19,7 @@ do
         python3 find_similar_kernel.py $data -a vgg --layers 16 --ckpt ckpt_best.pth -v v2qq --qb $qb
         python3 main.py $data -a vgg --layers 16 -j 8 -C -g 0 1 -b 256 -E -N --ckpt "ckpt_best_v2qq_q"$qb"88.pth"
         python3 main.py $data -a vgg --layers 16 -j 8 -C -g 0 1 -b 256 -T --ckpt "ckpt_best_v2qq_q"$qb"88.pth" -N -v v2qq --qb $qb --lr 0.005
-        rm -f checkpoint/*/*/ckpt_rt*_v*_q*_epoch_*.pth
-        python3 main.py $data -a vgg --layers 16 -j 8 -C -g 0 1 -b 256 -E -N --ckpt "ckpt_rt1_v2qq_q"$qb"88_best.pth" --qb $qb
+        rm -f checkpoint/*/*/ckpt_rt*_v*_q*_s*_epoch_*.pth
+        python3 main.py $data -a vgg --layers 16 -j 8 -C -g 0 1 -b 256 -E -N --ckpt "ckpt_rt1_v2qq_q"$qb"88_s5_best.pth" --qb $qb
     done
 done

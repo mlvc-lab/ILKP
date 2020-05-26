@@ -87,6 +87,7 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
+            file_name += '_s{}'.format(opt.save_epoch)
         else:
             if opt.quant:
                 file_name += '_q{}'.format(opt.quant_bit)
@@ -113,6 +114,7 @@ def save_model(state, epoch, is_best, opt, n_retrain):
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
+            file_name += '_s{}'.format(opt.save_epoch)
 
     file_name_best = deepcopy(file_name) + '_best.pth' # baseline: ckpt_best.pth
     file_name += '_epoch_{}.pth'.format(epoch) # baseline: ckpt_epoch_{}.pth
@@ -162,6 +164,7 @@ def save_summary(summary, opt, n_retrain):
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
+            file_name += '_s{}'.format(opt.save_epoch)
         else:
             if opt.quant:
                 file_name += '_q{}'.format(opt.quant_bit)
@@ -188,6 +191,7 @@ def save_summary(summary, opt, n_retrain):
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
+            file_name += '_s{}'.format(opt.save_epoch)
     file_name += '.csv'
     file_summ = dir_path / file_name
 

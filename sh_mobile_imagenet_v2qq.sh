@@ -15,7 +15,7 @@ do
         python3 find_similar_kernel.py imagenet -a $model --groups 3 --ckpt ckpt_best.pth -v v2qq --qb $qb
         python3 main.py imagenet -a $model --groups 3 -j 16 -C -g 0 1 -E -N --ckpt "ckpt_best_v2qq_q"$qb"88.pth" --datapath /dataset/ImageNet --qb $qb
         python3 main.py imagenet -a $model --groups 3 -j 16 -C -g 0 1 --wd 4e-5 -p 500 -T --ckpt "ckpt_best_v2qq_q"$qb"88.pth" --datapath /dataset/ImageNet -N -v v2qq --qb $qb --lr 0.01 --epochs 90
-        rm -f checkpoint/*/*/ckpt_rt*_v*_q*_epoch_*.pth
-        python3 main.py imagenet -a $model --groups 3 -j 16 -C -g 0 1 -E -N --ckpt "ckpt_rt1_v2qq_q"$qb"88_best.pth" --datapath /dataset/ImageNet --qb $qb
+        rm -f checkpoint/*/*/ckpt_rt*_v*_q*_s*_epoch_*.pth
+        python3 main.py imagenet -a $model --groups 3 -j 16 -C -g 0 1 -E -N --ckpt "ckpt_rt1_v2qq_q"$qb"88_s5_best.pth" --datapath /dataset/ImageNet --qb $qb
     done
 done
