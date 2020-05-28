@@ -58,7 +58,12 @@ if __name__ == '__main__':
                              ' | '.join(model_names) +
                              ' (default: mobilenet)')
     parser.add_argument('--layers', default=16, type=int, metavar='N',
-                        help='number of layers in VGG/ResNet/ResNeXt/WideResNet (default: 16)')
+                        help='number of layers in VGG/ResNet/WideResNet (default: 16)')
+    parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
+                        help='Use batch norm in VGG?')
+    parser.add_argument('--width-mult', default=1.0, type=float, metavar='WM',
+                        help='width multiplier to thin a network '
+                             'uniformly at each layer (default: 1.0)')
     parser.add_argument('-o', '--out', type=str, default='pretrained_model.pth',
                         help='output filename of pretrained model from our google drive')
     args = parser.parse_args()
