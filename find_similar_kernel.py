@@ -20,7 +20,7 @@ from copy import deepcopy
 
 import models
 from config import config
-from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, get_kernel, get_pwkernel, set_kernel, set_pwkernel
+from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, set_arch_name, get_kernel, get_pwkernel, set_kernel, set_pwkernel
 from quantize import quantize, quantize_pw, quantize_ab, quantize_alpha
 
 
@@ -34,9 +34,7 @@ def main():
         exit()
 
     # set model name
-    arch_name = opt.arch
-    if opt.arch in hasDiffLayersArchs:
-        arch_name += str(opt.layers)
+    arch_name = set_arch_name(opt)
 
     print('\n=> creating model \'{}\''.format(arch_name))
     model = models.__dict__[opt.arch](data=opt.dataset, num_layers=opt.layers,
@@ -86,6 +84,9 @@ def main():
 
 def find_kernel(model, opt):
     r"""find the most similar kernel
+
+    Return:
+        idx_all: indices of similar kernels with $\alpha$ and $\beta$.
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
@@ -104,6 +105,9 @@ def find_kernel(model, opt):
     ref_norm = ref_layer - ref_mean
     ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
 
+    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-5)
+    denom = ref_norm_sq.view(-1, ref_length) + epsilon
+
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
         cur_weight = torch.Tensor(w_kernel[i])
@@ -118,9 +122,8 @@ def find_kernel(model, opt):
 
         for j in range(cur_length):
             numer = torch.matmul(cur_norm[j], ref_norm.T)
-            denom = ref_norm_sq.view(-1, ref_length)
             alphas = deepcopy(numer / denom)
-            del numer, denom
+            del numer
             betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
             residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
                 cur_weight[j].expand_as(ref_layer)
@@ -139,7 +142,7 @@ def find_kernel(model, opt):
 
 
 def find_kernel_pw(model, opt):
-    r"""find the most similar kernel in pointwise convolutional layers
+    r"""find the most similar kernel in pointwise convolutional layers using cuda
     """
     w_kernel = get_pwkernel(model, opt)
     num_layer = len(w_kernel)

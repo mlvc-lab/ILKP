@@ -30,9 +30,7 @@ def main():
         raise Exception('No GPU found, please run without --cuda')
 
     # set model name
-    arch_name = opt.arch
-    if opt.arch in hasDiffLayersArchs:
-        arch_name += str(opt.layers)
+    arch_name = set_arch_name(opt)
 
     print('\n=> creating model \'{}\''.format(arch_name))
     model = models.__dict__[opt.arch](data=opt.dataset, num_layers=opt.layers,
@@ -253,7 +251,7 @@ def main():
             state['idx'] = []
             is_best = acc1_valid > best_acc1
             best_acc1 = max(acc1_valid, best_acc1)
-            save_model(state, epoch, is_best, opt, n_retrain)
+            save_model(arch_name, state, epoch, is_best, opt, n_retrain)
             save_summary(summary, opt, n_retrain)
         else:
             # every 'opt.save_epoch' epochs
@@ -263,11 +261,12 @@ def main():
                 state['idx'] = indices
                 is_best = acc1_valid > best_acc1
                 best_acc1 = max(acc1_valid, best_acc1)
-                save_model(state, epoch, is_best, opt, n_retrain)
+                save_model(arch_name, state, epoch, is_best, opt, n_retrain)
                 save_summary(summary, opt, n_retrain)
 
-    avg_train_time = train_time / (opt.epochs-start_epoch)
-    avg_valid_time = validate_time / (opt.epochs-start_epoch)
+    # calculate time 
+    avg_train_time = train_time / (opt.epochs - start_epoch)
+    avg_valid_time = validate_time / (opt.epochs - start_epoch)
     total_train_time = train_time + validate_time
     print('====> average training time per epoch: {:,}m {:.2f}s'.format(
         int(avg_train_time//60), avg_train_time%60))

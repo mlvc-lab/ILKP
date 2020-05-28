@@ -1,6 +1,6 @@
 import argparse
 import models
-from utils import hasDiffLayersArchs
+from utils import hasDiffLayersArchs, set_arch_name
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -31,9 +31,7 @@ def main():
     opt = config()
 
     # set model name
-    arch_name = opt.arch
-    if opt.arch in hasDiffLayersArchs:
-        arch_name += str(opt.layers)
+    arch_name = set_arch_name(opt)
 
     print('\n[ {}-cifar10 parameters ]'.format(arch_name))
     model = models.__dict__[opt.arch](data='cifar10', num_layers=opt.layers,

@@ -19,7 +19,7 @@ r'''version list
 - v3: rotation, flip, shift
 '''
 versions = [
-    'v2', 'v2q', 'v2qq', 'v2f', 'v2nb',
+    'v2', 'v2q', 'v2qq', 'v2f', 'v2nb', #'v2.5',
     # 'v3',
 ]
 
@@ -54,6 +54,8 @@ def config():
     parser.add_argument('--wd', '--weight-decay', default=5e-4, type=float,
                         metavar='W', help='weight decay (default: 5e-4)',
                         dest='weight_decay')
+    parser.add_argument('--nesterov', dest='nesterov', action='store_true',
+                        help='use nesterov momentum?')
     parser.add_argument('--layers', default=16, type=int, metavar='N',
                         help='number of layers in VGG/ResNet/ResNeXt/WideResNet (default: 16)')
     parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
@@ -94,6 +96,8 @@ def config():
                              '(subvector size) (default: 8)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
+    parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-5, type=float, metavar='EPS',
+                        help='epsilon for denominator of alpha in find_kernel (default: 1e-5)')
     parser.add_argument('-s', '--save-epoch', default=5, type=int, metavar='N',
                         dest='save_epoch',
                         help='number of epochs to save checkpoint and to apply new method')

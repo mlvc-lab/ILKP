@@ -51,13 +51,9 @@ def load_model(model, ckpt_file, main_gpu, use_cuda=True):
     return checkpoint
 
 
-def save_model(state, epoch, is_best, opt, n_retrain):
+def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
     r"""Save the model (checkpoint) at the training time in each epoch
     """
-    arch_name = opt.arch
-    if opt.arch in hasDiffLayersArchs:
-        arch_name += str(opt.layers)
-
     dir_ckpt = pathlib.Path('checkpoint')
     dir_path = dir_ckpt / arch_name / opt.dataset
     dir_path.mkdir(parents=True, exist_ok=True)
@@ -289,6 +285,7 @@ class ProgressMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, opt):
     r"""Sets the learning rate, decayed rate of 0.98 every epoch
+    or 0.5 every 30 epochs for VGG
     """
     if opt.arch == 'vgg':
         lr = opt.lr * (0.5 ** (epoch // 30))
@@ -316,6 +313,22 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
+
+
+def set_arch_name(opt):
+    r"""set architecture name
+    """
+    arch_name = deepcopy(opt.arch)
+    if opt.arch in hasDiffLayersArchs:
+        arch_name += str(opt.layers)
+    if opt.arch == 'vgg' and opt.bn:
+        arch_name += '_bn'
+    if opt.arch == 'wideresnet':
+        if (opt.width_mult * 10) % 10 != 0:
+            arch_name += str(opt.width_mult)
+        else:
+            arch_name += str(int(opt.width_mult))
+    return arch_name
 
 
 def get_kernel(model, opt):

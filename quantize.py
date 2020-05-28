@@ -9,7 +9,7 @@ import numpy as np
 
 import models
 from config import config
-from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, get_kernel, get_pwkernel, set_kernel, set_pwkernel
+from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, set_arch_name, get_kernel, get_pwkernel, set_kernel, set_pwkernel
 
 
 def main():
@@ -22,9 +22,7 @@ def main():
         exit()
 
     # set model name
-    arch_name = opt.arch
-    if opt.arch in hasDiffLayersArchs:
-        arch_name += str(opt.layers)
+    arch_name = set_arch_name(opt)
 
     print('\n=> creating model \'{}\''.format(arch_name))
     model = models.__dict__[opt.arch](data=opt.dataset, num_layers=opt.layers,

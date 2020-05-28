@@ -292,6 +292,11 @@ class MobileNet_CIFAR(nn.Module):
 
 
 def mobilenet(data='cifar10', **kwargs):
+    r"""MobileNet models from "[MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications](https://arxiv.org/abs/1704.04861)"
+
+    Args:
+        data: the name of datasets
+    """
     width_mult = kwargs.get('width_mult')
     if data in ['cifar10', 'cifar100']:
         return MobileNet_CIFAR(int(data[5:]), width_mult)

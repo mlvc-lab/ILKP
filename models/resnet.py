@@ -1,6 +1,8 @@
-"""ResNet in PyTorch.
+"""ResNet/WideResNet in PyTorch.
 See the paper "Deep Residual Learning for Image Recognition"
 (https://arxiv.org/abs/1512.03385)
+and the paper "Wide Residual Networks"
+(https://arxiv.org/abs/1605.07146)
 for more details.
 """
 import torch
@@ -531,6 +533,11 @@ cfgs_cifar = {
 
 
 def resnet(data='cifar10', **kwargs):
+    r"""ResNet models from "[Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)"
+
+    Args:
+        data: the name of datasets
+    """
     num_layers = str(kwargs.get('num_layers'))
     width_mult = kwargs.get('width_mult')
     if data in ['cifar10', 'cifar100']:
@@ -550,64 +557,26 @@ def resnet(data='cifar10', **kwargs):
     else:
         return None
 
-# TODO:
-# def resnext(data='imagenet', **kwargs):
-#     num_layers = str(kwargs.get('num_layers'))
-#     width_mult = kwargs.get('width_mult')
-#     if data == 'cifar10':
-#         return ResNet_CIFAR(10)
-#     elif data == 'cifar100':
-#         return ResNet_CIFAR(100)
-#     elif data == 'imagenet':
-#         return ResNet(1000)
-#     # TODO:
-#     # elif data == 'tinyimagenet':
-#     #     return ResNet(100)
-#     else:
-#         return None
-
-
-# def wideresnet(data='imagenet', **kwargs):
-#     num_layers = str(kwargs.get('num_layers'))
-#     width_mult = kwargs.get('width_mult')
-#     if data == 'cifar10':
-#         return ResNet_CIFAR(10)
-#     elif data == 'cifar100':
-#         return ResNet_CIFAR(100)
-#     elif data == 'imagenet':
-#         return ResNet(1000)
-#     # TODO:
-#     # elif data == 'tinyimagenet':
-#     #     return ResNet(100)
-#     else:
-#         return None
-
 '''
-def resnext50_32x4d(pretrained=False, progress=True, **kwargs):
-    r"""ResNeXt-50 32x4d model from
-    `"Aggregated Residual Transformation for Deep Neural Networks" <https://arxiv.org/pdf/1611.05431.pdf>`_
+def wideresnet(data='imagenet', **kwargs):
+    r"""WideResNet models from "[Wide Residual Networks](https://arxiv.org/abs/1605.07146)"
+
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
+        data: the name of datasets
     """
-    kwargs['groups'] = 32
-    kwargs['width_per_group'] = 4
-    return _resnet('resnext50_32x4d', Bottleneck, [3, 4, 6, 3],
-                   pretrained, progress, **kwargs)
-
-
-def resnext101_32x8d(pretrained=False, progress=True, **kwargs):
-    r"""ResNeXt-101 32x8d model from
-    `"Aggregated Residual Transformation for Deep Neural Networks" <https://arxiv.org/pdf/1611.05431.pdf>`_
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    kwargs['groups'] = 32
-    kwargs['width_per_group'] = 8
-    return _resnet('resnext101_32x8d', Bottleneck, [3, 4, 23, 3],
-                   pretrained, progress, **kwargs)
-
+    num_layers = str(kwargs.get('num_layers'))
+    width_mult = kwargs.get('width_mult')
+    if data == 'cifar10':
+        return ResNet_CIFAR(10)
+    elif data == 'cifar100':
+        return ResNet_CIFAR(100)
+    elif data == 'imagenet':
+        return ResNet(1000)
+    # TODO:
+    # elif data == 'tinyimagenet':
+    #     return ResNet(100)
+    else:
+        return None
 
 def wide_resnet50_2(pretrained=False, progress=True, **kwargs):
     r"""Wide ResNet-50-2 model from
@@ -616,6 +585,7 @@ def wide_resnet50_2(pretrained=False, progress=True, **kwargs):
     which is twice larger in every block. The number of channels in outer 1x1
     convolutions is the same, e.g. last block in ResNet-50 has 2048-512-2048
     channels, and in Wide ResNet-50-2 has 2048-1024-2048.
+
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr

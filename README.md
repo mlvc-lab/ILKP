@@ -1,8 +1,10 @@
 # Memory Efficient Storing Scheme
 
-For my research..
+For my research..  
 You can train or test MobileNet/MobileNetV2/ResNet/VGG on CIFAR10/CIFAR100/ImageNet.  
 Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and resume on different device environment available.
+
+----------
 
 ## Requirements
 
@@ -32,59 +34,44 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 ## TODO
 
 - Update other models
-  - VGG pretrained model
-  - ResNext, WideResNet coding
+  - VGG pretrained model upload on google drive
+  - WideResNet coding
 - 여러가지 flag -> rotation, shift 추가해서 성능확인 (v3)
 - Make TinyImageNet dataloader
 
 ----------
 
-## Number of (Depth-wise) Convolution kernels in Models
+## Files
 
-### Mobile-friendly models - CIFAR - depth-wise convolution
-
-| LayerNum |  MobileNet   | MobileNetV2 |
-|:--------:|:------------:|:-----------:|
-|    0     | (3X3X1)X32   | (3X3X1)X32  |
-|    1     | (3X3X1)X64   | (3X3X1)X96  |
-|    2     | (3X3X1)X128  | (3X3X1)X144 |
-|    3     | (3X3X1)X128  | (3X3X1)X144 |
-|    4     | (3X3X1)X256  | (3X3X1)X192 |
-|    5     | (3X3X1)X256  | (3X3X1)X192 |
-|    6     | (3X3X1)X512  | (3X3X1)X192 |
-|    7     | (3X3X1)X512  | (3X3X1)X384 |
-|    8     | (3X3X1)X512  | (3X3X1)X384 |
-|    9     | (3X3X1)X512  | (3X3X1)X384 |
-|    10    | (3X3X1)X512  | (3X3X1)X384 |
-|    11    | (3X3X1)X512  | (3X3X1)X576 |
-|    12    | (3X3X1)X1024 | (3X3X1)X576 |
-|    13    |              | (3X3X1)X576 |
-|    14    |              | (3X3X1)X960 |
-|    15    |              | (3X3X1)X960 |
-|    16    |              | (3X3X1)X960 |
-|    17    |              |             |
-|    18    |              |             |
-
-### ResNets - CIFAR - convolution
-
-| LayerNum |  ResNet20  | \| | LayerNum |  ResNet32  | \| | LayerNum |  ResNet44  | \| | LayerNum |  ResNet56  | \| | LayerNum |  ResNet110  |
-|:--------:|:----------:|:--:|:--------:|:----------:|:--:|:--------:|:----------:|:--:|:--------:|:----------:|:--:|:--------:|:-----------:|
-|  0      | (3X3X3)X16  | \| |  0      | (3X3X3)X16  | \| |  0      | (3X3X3)X16  | \| |  0      | (3X3X3)X16  | \| |  0       | (3X3X3)X16  |
-|  1~6    | (3X3X16)X16 | \| |  1~10   | (3X3X16)X16 | \| |  1~14   | (3X3X16)X16 | \| |  1~18   | (3X3X16)X16 | \| |  1~36    | (3X3X16)X16 |
-|  7      | (3X3X16)X32 | \| |  11     | (3X3X16)X32 | \| |  15     | (3X3X16)X32 | \| |  19     | (3X3X16)X32 | \| |  37      | (3X3X16)X32 |
-|  8~12   | (3X3X32)X32 | \| |  12~20  | (3X3X32)X32 | \| |  16~28  | (3X3X32)X32 | \| |  20~36  | (3X3X32)X32 | \| |  38~72   | (3X3X32)X32 |
-|  13     | (3X3X32)X64 | \| |  21     | (3X3X32)X64 | \| |  29     | (3X3X32)X64 | \| |  37     | (3X3X32)X64 | \| |  73      | (3X3X32)X64 |
-|  14~18  | (3X3X64)X64 | \| |  22~30  | (3X3X64)X64 | \| |  30~42  | (3X3X64)X64 | \| |  38~54  | (3X3X64)X64 | \| |  74~108  | (3X3X64)X64 |
-
-### Others
-
-Soon...
+- `check_model_params.py`: optional file for calculating number of parameters
+- `config.py`: set configuration
+- `data.py`: data loading
+- `down_ckpt.py`: download checkpoints of pretrained models
+- `down_ckpt_all.sh`: shell file of downloading all checkpoints of pretrained models
+- `down_imagenet.py`: download the ImageNet dataset (ILSVRC2012 ver.)
+- `find_similar_kernel.py`: find similar kernel
+- `main.py`: main python file for training or testing
+- `models`
+  - `__init__.py`
+  - `mobilenet.py`
+  - `mobilenetv2.py`
+  - `resnet.py`
+  - `vgg.py`
+- `quantize.py`
+- `sh_mobile_imagenet_v2qq.sh`
+- `sh_resnet_imagenet_v2qq.sh`
+- `sh_v2nb_cifar_test.sh`
+- `sh_v2qq_cifar_run.sh`
+- `sh_v2qq_cifar_test.sh`
+- `sh_vgg16_cifar_v2qq.sh`
+- `torchvision_to_ours.py`: change checkpoints files from pretrained models in torchvision to our states
+- `utils.py`
 
 ----------
 
 ## How to download the ImageNet data
 
-```
+``` text
 usage: down_imagenet.py [-h] [--datapath PATH]
 
 optional arguments:
@@ -124,7 +111,7 @@ $ ./down_ckpt_all.sh
 
 ## How to train / test networks
 
-```
+``` text
 usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [-b N] [--lr LR]
                [--momentum M] [--wd W] [--layers N] [--bn] [--width-mult WM]
                [--groups N] [-p N] [--ckpt PATH] [-R] [-E] [-C] [-T]
@@ -132,8 +119,6 @@ usage: main.py [-h] [-a ARCH] [-j N] [--epochs N] [-b N] [--lr LR]
                [-pwd N] [-N] [-s N] [--nl] [--nls NLS] [--pl] [--pls PLS] [-Q]
                [--np] [--qb N] [--qba N] [--qbb N]
                DATA
-
-KH Research
 
 positional arguments:
   DATA                  dataset: cifar10 | cifar100 | imagenet (default:
@@ -153,7 +138,7 @@ optional arguments:
   --momentum M          momentum (default: 0.9)
   --wd W, --weight-decay W
                         weight decay (default: 5e-4)
-  --layers N            number of layers in VGG/ResNet/ResNeXt/WideResNet
+  --layers N            number of layers in VGG/ResNet/WideResNet
                         (default: 16)
   --bn, --batch-norm    Use batch norm in VGG?
   --width-mult WM       width multiplier to thin a network uniformly at each

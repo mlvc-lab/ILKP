@@ -11,12 +11,12 @@ do
                 # for layer in 20 32 44 56 110
                 for layer in 20 32 44
                 do
-                    echo "linear quantization baseline"
-                    python3 quantize.py $data -a $model --layers $layer --ckpt ckpt_best.pth --qb $qb
-                    python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 -E --ckpt "ckpt_best_q"$qb".pth" --qb $qb
-                    python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 1 -b 256 -T -Q --ckpt "ckpt_best_q"$qb".pth" --qb $qb --lr 0.01
-                    rm -rf checkpoint/*/*/ckpt_rt*_q*_epoch_*.pth
-                    python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 -E --ckpt "ckpt_rt1_q"$qb"_best.pth" --qb $qb
+                    # echo "linear quantization baseline"
+                    # python3 quantize.py $data -a $model --layers $layer --ckpt ckpt_best.pth --qb $qb
+                    # python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 -E --ckpt "ckpt_best_q"$qb".pth" --qb $qb
+                    # python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 1 -b 256 -T -Q --ckpt "ckpt_best_q"$qb".pth" --qb $qb --lr 0.01
+                    # rm -rf checkpoint/*/*/ckpt_rt*_q*_epoch_*.pth
+                    # python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 -E --ckpt "ckpt_rt1_q"$qb"_best.pth" --qb $qb
                     echo "v2qq"
                     python3 find_similar_kernel.py $data -a $model --layers $layer --ckpt ckpt_best.pth -v v2qq --qb $qb
                     python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 -E -N --ckpt "ckpt_best_v2qq_q"$qb"88.pth" --qb $qb
@@ -25,12 +25,12 @@ do
                     python3 main.py $data -a $model --layers $layer -j 4 -C -g 0 -E -N --ckpt "ckpt_rt1_v2qq_q"$qb"88_s5_best.pth" --qb $qb
                 done
             else
-                echo "linear quantization baseline"
-                python3 quantize.py $data -a $model --ckpt ckpt_best.pth --qb $qb
-                python3 main.py $data -a $model -j 4 -C -g 0 -E --ckpt "ckpt_best_q"$qb".pth" --qb $qb
-                python3 main.py $data -a $model -j 4 -C -g 0 1 -b 256 -T -Q --ckpt "ckpt_best_q"$qb".pth" --qb $qb --lr 0.01
-                rm -rf checkpoint/*/*/ckpt_rt*_q*_epoch_*.pth
-                python3 main.py $data -a $model -j 4 -C -g 0 -E --ckpt "ckpt_rt1_q"$qb"_best.pth" --qb $qb
+                # echo "linear quantization baseline"
+                # python3 quantize.py $data -a $model --ckpt ckpt_best.pth --qb $qb
+                # python3 main.py $data -a $model -j 4 -C -g 0 -E --ckpt "ckpt_best_q"$qb".pth" --qb $qb
+                # python3 main.py $data -a $model -j 4 -C -g 0 1 -b 256 -T -Q --ckpt "ckpt_best_q"$qb".pth" --qb $qb --lr 0.01
+                # rm -rf checkpoint/*/*/ckpt_rt*_q*_epoch_*.pth
+                # python3 main.py $data -a $model -j 4 -C -g 0 -E --ckpt "ckpt_rt1_q"$qb"_best.pth" --qb $qb
                 echo "v2qq"
                 python3 find_similar_kernel.py $data -a $model --ckpt ckpt_best.pth -v v2qq --qb $qb
                 python3 main.py $data -a $model -j 4 -C -g 0 -E -N --ckpt "ckpt_best_v2qq_q"$qb"88.pth" --qb $qb

@@ -389,6 +389,11 @@ class MobileNetV2_CIFAR(nn.Module):
 
 
 def mobilenetv2(data='cifar10', **kwargs):
+    r"""MobileNetV2 models from "[MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)"
+
+    Args:
+        data: the name of datasets
+    """
     width_mult = kwargs.get('width_mult')
     if data in ['cifar10', 'cifar100']:
         return MobileNetV2_CIFAR(int(data[5:]), width_mult)
