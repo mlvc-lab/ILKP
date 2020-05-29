@@ -155,6 +155,8 @@ def main():
                 else:
                     print('\n==> {}/{} {}-th retraining'.format(
                         arch_name, opt.dataset, n_retrain))
+                print('==> Version: {}/ SaveEpoch: {}'.format(
+                    opt.version, opt.save_epoch))
             else:
                 if opt.quant:
                     print('\n==> {}/{} {}-th {}bit retraining'.format(
@@ -200,6 +202,8 @@ def main():
                 else:
                     print('\n==> {}/{}-new_{} training'.format(
                         arch_name, opt.dataset, opt.version))
+                print('==> Version: {}/ SaveEpoch: {}'.format(
+                    opt.version, opt.save_epoch))
             print('==> Epoch: {}, lr = {}'.format(
                 epoch, optimizer.param_groups[0]["lr"]))
 
