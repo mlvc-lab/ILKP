@@ -145,6 +145,7 @@ def main():
     best_acc1 = 0.0
     train_time = 0.0
     validate_time = 0.0
+    extra_time = 0.0
     for epoch in range(start_epoch, opt.epochs):
         adjust_learning_rate(optimizer, epoch, opt)
         if opt.retrain:
@@ -174,6 +175,7 @@ def main():
             train_time += elapsed_time
             print('====> {:.2f} seconds to train this epoch\n'.format(
                 elapsed_time))
+            start_time = time.time()
             if opt.new:
                 if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
@@ -191,6 +193,10 @@ def main():
                     if arch_name in hasPWConvArchs:
                         print('==> {}bit pwconv Quantization...'.format(opt.quant_bit))
                         quantize_pw(model, opt, opt.quant_bit)
+            elapsed_time = time.time() - start_time
+            extra_time += elapsed_time
+            print('====> {:.2f} seconds for extra time this epoch\n'.format(
+                elapsed_time))
         else:
             if not opt.new:
                 print('\n==> {}/{} training'.format(
@@ -217,6 +223,7 @@ def main():
             train_time += elapsed_time
             print('====> {:.2f} seconds to train this epoch\n'.format(
                 elapsed_time))
+            start_time = time.time()
             if opt.new:
                 if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
                     print('===> Quantization...')
@@ -227,6 +234,10 @@ def main():
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
                     indices = find_similar_kernel_n_change(model, opt.version)
+            elapsed_time = time.time() - start_time
+            extra_time += elapsed_time
+            print('====> {:.2f} seconds to extra time this epoch\n'.format(
+                elapsed_time))
 
         # evaluate on validation set
         print('===> [ Validation ]')
@@ -271,15 +282,20 @@ def main():
     # calculate time 
     avg_train_time = train_time / (opt.epochs - start_epoch)
     avg_valid_time = validate_time / (opt.epochs - start_epoch)
-    total_train_time = train_time + validate_time
-    print('====> average training time per epoch: {:,}m {:.2f}s'.format(
+    avg_extra_time = extra_time / (opt.epochs - start_epoch)
+    total_train_time = train_time + validate_time + extra_time
+    print('====> average training time each epoch: {:,}m {:.2f}s'.format(
         int(avg_train_time//60), avg_train_time%60))
-    print('====> average validation time per epoch: {:,}m {:.2f}s'.format(
+    print('====> average validation time each epoch: {:,}m {:.2f}s'.format(
         int(avg_valid_time//60), avg_valid_time%60))
+    print('====> average extra time each epoch: {:,}m {:.2f}s'.format(
+        int(avg_extra_time//60), avg_extra_time%60))
     print('====> training time: {}h {}m {:.2f}s'.format(
         int(train_time//3600), int((train_time%3600)//60), train_time%60))
     print('====> validation time: {}h {}m {:.2f}s'.format(
         int(validate_time//3600), int((validate_time%3600)//60), validate_time%60))
+    print('====> extra time: {}h {}m {:.2f}s'.format(
+        int(extra_time//3600), int((extra_time%3600)//60), extra_time%60))
     print('====> total training time: {}h {}m {:.2f}s'.format(
         int(total_train_time//3600), int((total_train_time%3600)//60), total_train_time%60))
 
