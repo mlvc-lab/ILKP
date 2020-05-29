@@ -166,6 +166,9 @@ def find_kernel_pw(model, opt):
     ref_norm = ref_layer_slices - ref_mean
     ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
 
+    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-5)
+    denom = ref_norm_sq + epsilon
+
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
         cur_layer = torch.Tensor(w_kernel[i]).cuda()
@@ -179,7 +182,7 @@ def find_kernel_pw(model, opt):
             cur_norm = cur_weight - cur_mean
 
             numer = torch.matmul(cur_norm, ref_norm.T)
-            denom = ref_norm_sq.expand_as(numer)
+            denom = denom.expand_as(numer)
             alphas = deepcopy(numer / denom)
             del numer, denom
             betas = cur_mean - alphas * ref_mean.view(-1, ref_length).expand_as(alphas)
