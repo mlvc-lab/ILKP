@@ -236,7 +236,7 @@ def main():
                     indices = find_similar_kernel_n_change(model, opt.version)
             elapsed_time = time.time() - start_time
             extra_time += elapsed_time
-            print('====> {:.2f} seconds to extra time this epoch\n'.format(
+            print('====> {:.2f} seconds for extra time this epoch\n'.format(
                 elapsed_time))
 
         # evaluate on validation set

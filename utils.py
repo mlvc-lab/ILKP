@@ -325,7 +325,7 @@ def set_arch_name(opt):
         arch_name += '_bn'
     if opt.arch == 'wideresnet':
         if (opt.width_mult * 10) % 10 != 0:
-            arch_name += str(opt.width_mult)
+            arch_name += str(opt.width_mult).replace('.', '_')
         else:
             arch_name += str(int(opt.width_mult))
     return arch_name
