@@ -94,6 +94,10 @@ def config():
                         dest='pw_bind_size',
                         help='the number of binding channels in pointwise convolution '
                              '(subvector size) (default: 8)')
+    parser.add_argument('-pws', '--pwkernel-stride', default=1, type=int, metavar='N',
+                        dest='pwkernel_stride',
+                        help='the number of pwkernel stride size in reference layer '
+                             '(default: 8)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
     parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-5, type=float, metavar='EPS',
@@ -109,6 +113,8 @@ def config():
                         help='pearson correlation coefficient loss?')
     parser.add_argument('--pls', '--pl-scale', dest='pls', default=1.0, type=float,
                         help='scale factor of pcc_loss')
+    parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
+                        help='weight analysis in find_similar_kernel.py')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')

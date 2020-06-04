@@ -56,8 +56,7 @@ def main():
         print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
             opt.ckpt, checkpoint['epoch']))
 
-        opt.analysis = True
-        if opt.analysis:
+        if opt.w_anal:
             if not opt.version == 'v2':
                 print('analysis can only be used with ver2...')
                 exit()
@@ -108,7 +107,7 @@ def find_kernel(model, opt):
 
     # TODO: denom이 epsilon보다 작을경우 해당 alpha를 1로 하는 것으로 설정
     epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-5)
-    denom = ref_norm_sq.view(-1, ref_length)
+    denom = ref_norm_sq.view(-1, ref_length) + epsilon
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -151,7 +150,8 @@ def find_kernel_pw(model, opt):
     """
     w_kernel = get_pwkernel(model, opt)
     num_layer = len(w_kernel)
-    d = opt.pw_bind_size
+    pwd = opt.pw_bind_size
+    pws = opt.pwkernel_stride
     idx_all = []
 
     ref_layer_num = 0
@@ -159,15 +159,16 @@ def find_kernel_pw(model, opt):
     # ref_layer = torch.Tensor(w_kernel[ref_layer_num])
     ref_layer = ref_layer.view(ref_layer.size(0), ref_layer.size(1))
     ref_layer_slices = None
-    num_slices_per_kernel = ref_layer.size(1) - d + 1
-    for i in range(num_slices_per_kernel):
+    num_slices = (ref_layer.size(1) - pwd) // pws + 1
+    for i in range(0, ref_layer.size(1) - pwd + 1, pws):
         if ref_layer_slices == None:
-            ref_layer_slices = ref_layer[:, i:i+d]
+            ref_layer_slices = ref_layer[:, i:i+pwd]
         else:
-            ref_layer_slices = torch.cat(
-                (ref_layer_slices, ref_layer[:, i:i+d]), dim=1)
-    ref_layer_slices = ref_layer_slices.view(
-        ref_layer.size(0)*num_slices_per_kernel, d)
+            ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:, i:i+pwd]), dim=1)
+    if ((ref_layer.size(1) - pwd) % pws) != 0:
+        ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:, -pwd:]), dim=1)
+        num_slices += 1
+    ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices, pwd)
     ref_length = ref_layer_slices.size(0)
     ref_mean = ref_layer_slices.mean(dim=1, keepdim=True)
     ref_norm = ref_layer_slices - ref_mean
@@ -182,7 +183,7 @@ def find_kernel_pw(model, opt):
         cur_layer = cur_layer.view(cur_layer.size(0), -1)
         cur_layer_length = cur_layer.size(0)
         for j in range(cur_layer_length):
-            cur_weight = cur_layer[j].view(-1, d)
+            cur_weight = cur_layer[j].view(-1, pwd)
             cur_length = cur_weight.size(0)
             cur_mean = cur_weight.mean(dim=1, keepdim=True)
             cur_norm = cur_weight - cur_mean
