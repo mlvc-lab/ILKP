@@ -403,8 +403,11 @@ def validate(val_loader, model, criterion):
     return top1.avg, top5.avg
 
 
-def new_regularizer(model, regularization_name='nuc'):
+def new_regularizer(model, regularizer_name='nuc'):
     r"""add new regularizer
+
+    Args:
+        regularizer_name(str): name of regularizer
     """
     d = opt.bind_size
     if opt.arch in hasDiffLayersArchs:
@@ -419,7 +422,7 @@ def new_regularizer(model, regularization_name='nuc'):
             first_conv = model.get_layer_dwconv(0).weight
     first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
 
-    if regularization_name == 'nuc':
+    if regularizer_name == 'nuc':
         for idx in range(0, first_conv.size()[0], d):
             sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
             if idx == 0:
@@ -427,7 +430,7 @@ def new_regularizer(model, regularization_name='nuc'):
             else:
                 first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
         regularizer = opt.nls / torch.norm(first_conv_all, p='nuc')
-    elif regularization_name == 'pcc':
+    elif regularizer_name == 'pcc':
         sub_tensors = []
         for idx in range(0, first_conv.size()[0], d):
             sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
@@ -455,6 +458,9 @@ def new_regularizer(model, regularization_name='nuc'):
 #TODO: v2f k fix하고 alpha beta 찾는 방법 코딩
 def find_similar_kernel_n_change(model, version):
     r"""find the most similar kernel and change the kernel
+
+    Args:
+        version(str): version name of new method
     """
     indices = find_kernel(model, opt)
     if arch_name in hasPWConvArchs and not opt.np:
@@ -484,6 +490,10 @@ def find_similar_kernel_n_change(model, version):
 
 def idxtoweight(model, indices_all, version):
     r"""change indices to weights
+
+    Args:
+        indices_all(list): all indices with index of the most similar kernel, $\alpha$ and $\beta$
+        version(str): version name of new method
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)

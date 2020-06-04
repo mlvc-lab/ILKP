@@ -72,6 +72,9 @@ def save_quantized_model(model, ckpt, num_bits=8):
 
 def quantize(model, opt, num_bits=8):
     r"""quantize weights of convolution kernels
+
+    Args:
+        num_bits(int): number of bits for quantization
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
@@ -91,6 +94,9 @@ def quantize(model, opt, num_bits=8):
 
 def quantize_pw(model, opt, num_bits=8):
     r"""quantize weights of pointwise covolution kernels
+
+    Args:
+        num_bits(int): number of bits for quantization
     """
     w_kernel = get_pwkernel(model, opt)
     num_layer = len(w_kernel)
@@ -110,6 +116,10 @@ def quantize_pw(model, opt, num_bits=8):
 
 def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
     r"""quantize $\alpha$ and $\beta$
+
+    Args:
+        num_bits_a(int): number of bits for quantizing $\alpha$
+        num_bits_b(int): number of bits for quantiznig $\beta$
     """
     qmin_a = -2.**(num_bits_a - 1.)
     qmax_a = 2.**(num_bits_a - 1.) - 1.
@@ -141,6 +151,9 @@ def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
 
 def quantize_alpha(indices, num_bits_a=8):
     r"""quantize $\alpha$
+
+    Args:
+        num_bits_a(int): number of bits for quantizing $\alpha$
     """
     qmin_a = -2.**(num_bits_a - 1.)
     qmax_a = 2.**(num_bits_a - 1.) - 1.

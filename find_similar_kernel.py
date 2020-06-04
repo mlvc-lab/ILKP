@@ -54,14 +54,15 @@ def main():
         checkpoint = load_model(model, ckpt_file,
                                 main_gpu=None, use_cuda=False)
         print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
-                    opt.ckpt, checkpoint['epoch']))
+            opt.ckpt, checkpoint['epoch']))
 
-        # if opt.analysis:
-        #     if not opt.version == 'v2':
-        #         print('analysis can only be used with ver2...')
-        #         exit()
-        #     weight_analysis(model, checkpoint)
-        #     return
+        opt.analysis = True
+        if opt.analysis:
+            if not opt.version == 'v2':
+                print('analysis can only be used with ver2...')
+                exit()
+            weight_analysis(model, checkpoint)
+            return
         if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt, opt.quant_bit)
@@ -78,7 +79,7 @@ def main():
         return
     else:
         print('==> no Checkpoint found at \'{}\''.format(
-                    opt.ckpt))
+            opt.ckpt))
         exit()
 
 
@@ -86,7 +87,7 @@ def find_kernel(model, opt):
     r"""find the most similar kernel
 
     Return:
-        idx_all: indices of similar kernels with $\alpha$ and $\beta$.
+        idx_all(list): indices of similar kernels with $\alpha$ and $\beta$.
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
@@ -105,8 +106,9 @@ def find_kernel(model, opt):
     ref_norm = ref_layer - ref_mean
     ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-5)
-    denom = ref_norm_sq.view(-1, ref_length) + epsilon
+    # TODO: denom이 epsilon보다 작을경우 해당 alpha를 1로 하는 것으로 설정
+    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-5)
+    denom = ref_norm_sq.view(-1, ref_length)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -142,7 +144,10 @@ def find_kernel(model, opt):
 
 
 def find_kernel_pw(model, opt):
-    r"""find the most similar kernel in pointwise convolutional layers using cuda
+    r"""find the most similar kernel in pointwise convolutional layers using `cuda`
+
+    Return:
+        idx_all(list): indices of similar kernels with $\alpha$ and $\beta$.
     """
     w_kernel = get_pwkernel(model, opt)
     num_layer = len(w_kernel)
@@ -157,16 +162,18 @@ def find_kernel_pw(model, opt):
     num_slices_per_kernel = ref_layer.size(1) - d + 1
     for i in range(num_slices_per_kernel):
         if ref_layer_slices == None:
-            ref_layer_slices = ref_layer[:,i:i+d]
+            ref_layer_slices = ref_layer[:, i:i+d]
         else:
-            ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:,i:i+d]), dim=1)
-    ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices_per_kernel, d)
+            ref_layer_slices = torch.cat(
+                (ref_layer_slices, ref_layer[:, i:i+d]), dim=1)
+    ref_layer_slices = ref_layer_slices.view(
+        ref_layer.size(0)*num_slices_per_kernel, d)
     ref_length = ref_layer_slices.size(0)
     ref_mean = ref_layer_slices.mean(dim=1, keepdim=True)
     ref_norm = ref_layer_slices - ref_mean
     ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-5)
+    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-5)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -184,7 +191,8 @@ def find_kernel_pw(model, opt):
             denom = ref_norm_sq.expand_as(numer) + epsilon
             alphas = deepcopy(numer / denom)
             del numer, denom
-            betas = cur_mean - alphas * ref_mean.view(-1, ref_length).expand_as(alphas)
+            betas = cur_mean - alphas * \
+                ref_mean.view(-1, ref_length).expand_as(alphas)
             for idx_cur_slice in range(cur_length):
                 cur_alphas = alphas[idx_cur_slice].view(ref_length, -1)
                 cur_betas = betas[idx_cur_slice].view(ref_length, -1)
@@ -218,12 +226,14 @@ def save_model(ckpt, indices_all):
         indices = indices_all
 
     if opt.version in ['v2qq', 'v2f']:
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a,
+                    num_bits_b=opt.quant_bit_b)
     elif opt.version == 'v2nb':
         quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
         if opt.version in ['v2qq', 'v2f']:
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a,
+                        num_bits_b=opt.quant_bit_b)
         elif opt.version == 'v2nb':
             quantize_alpha(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
@@ -251,86 +261,47 @@ def save_model(ckpt, indices_all):
 
 
 def weight_analysis(model, ckpt):
-    r"""weight analysis
+    r"""analysis of dwkernel weights
     """
     import random
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    dir_weights = pathlib.Path('weights')
+    from utils import hasDWConvArchs
+    # make directory for saving plots
+    dir_weights = pathlib.Path('plot_weights')
     dir_weights.mkdir(parents=True, exist_ok=True)
 
-    w_kernel = model.get_weights_dwconv(use_cuda=False)
+    indices = find_kernel(model, opt)
+    w_kernel = get_kernel(model, opt)
+
     ref_layer_num = 0
-    idx_all = []
-
-    # ref_layer = torch.Tensor(w_kernel[ref_layer_num]).cuda()
-    ref_layer = torch.Tensor(w_kernel[ref_layer_num])
-    if opt.arch in hasDiffLayersArchs:
-        ref_layer = ref_layer.view(-1, 9)
-    else:
-        ref_layer = ref_layer.view(len(w_kernel[ref_layer_num]), -1)
-    ref_length = ref_layer.size()[0]
-    ref_mean = ref_layer.mean(dim=1).view(ref_length, -1)
-    ref_norm = ref_layer - ref_mean
-    ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
-
-    for i in range(1, num_layer):
-        idx = []
-        # cur_weight = torch.Tensor(w_kernel[i]).cuda()
-        cur_weight = torch.Tensor(w_kernel[i])
-        print(len(cur_weight))
-        if opt.arch in hasDiffLayersArchs:
-            cur_weight = cur_weight.view(-1, 9)
-        else:
-            cur_weight = cur_weight.view(len(w_kernel[i]), -1)
-        cur_length = cur_weight.size()[0]
-        cur_mean = cur_weight.mean(dim=1).view(cur_length, -1)
-        cur_norm = cur_weight - cur_mean
-
-        for j in tqdm(range(cur_length), ncols=80, unit='filter'):
-            numer = torch.matmul(cur_norm[j], ref_norm.T)
-            denom = ref_norm_sq.view(-1, ref_length)
-            alphas = numer / denom
-            del numer, denom
-            betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
-            residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
-                cur_weight[j].expand_as(ref_layer)
-            residual_mat = residual_mat.abs().sum(dim=1)
-            # k = deepcopy(residual_mat.argmin().cpu().item())
-            # alpha = deepcopy(alphas[0][k].cpu().item())
-            # beta = deepcopy(betas[0][k].cpu().item())
-            k = deepcopy(residual_mat.argmin().item())
-            alpha = deepcopy(alphas[0][k].item())
-            beta = deepcopy(betas[0][k].item())
-            ref_idx = (k, alpha, beta)
-            idx.append(ref_idx)
-            del alphas, betas, residual_mat
-            # torch.cuda.empty_cache()
-        del cur_weight, cur_norm, cur_mean
-        # torch.cuda.empty_cache()
-        idx_all.append(idx)
-
     layerNumList = list(range(1, len(w_kernel)))
-    randLayerIdx = random.sample(layerNumList,3)
-    for i in randLayerIdx:
+    randLayerIdx = random.sample(layerNumList, 5)
+    for i in tqdm(randLayerIdx, ncols=80, unit='layer'):
         kernelNumList = list(range(len(w_kernel[i])))
-        randKernelIdx = random.sample(kernelNumList,3)
+        randKernelIdx = random.sample(kernelNumList, 3)
         for j in randKernelIdx:
-            k = idx_all[i-1][j]
-            weights_cur = []
-            weights_ref = []
-            for u in range(3):
-                for v in range(3):
-                    weights_cur.append(w_kernel[i][j][0][u][v])
-                    weights_ref.append(w_kernel[ref_layer_num][k][0][u][v])
-            plt.figure(figsize=(8,6), dpi=300)
-            plt.title('weights')
-            plt.xlabel('current kernel K_{},{}'.format(i,j))
-            plt.ylabel('reference kernel K_{},{}'.format(0,k))
-            plt.scatter(weights_cur, weights_ref)
-            plt.savefig(dir_weights/'{}_{}_weight_{}_{}.png'.format(opt.arch, opt.dataset, i, j),
-                        bbox_inches='tight')
+            dwkernelNumList = list(range(len(w_kernel[i][j])))
+            randdwKernelIdx = random.sample(dwkernelNumList, 1)
+            for k in randdwKernelIdx:
+                ref_idx = indices[i-1][j*len(w_kernel[i][j])+k][0]
+                v = ref_idx // len(w_kernel[ref_layer_num][0])
+                w = ref_idx % len(w_kernel[ref_layer_num][0])
+                weights_cur = np.reshape(w_kernel[i][j][k], -1)
+                weights_ref = np.reshape(w_kernel[ref_layer_num][v][w], -1)
+                plt.figure(figsize=(8,6), dpi=300)
+                plt.title('{}-{}'.format(arch_name, opt.dataset))
+                if opt.arch in hasDWConvArchs:
+                    plt.xlabel(r'current kernel $K_{{ {},{} }}$'.format(i,j))
+                    plt.ylabel(r'reference kernel $K_{{ {},{} }}$'.format(ref_layer_num,ref_idx))
+                    plot_name = '{}_{}_weight_{}_{}.png'.format(arch_name, opt.dataset, i, j)
+                else:
+                    plt.xlabel(r'current kernel $K_{{ {},{},{} }}$'.format(i,j,k))
+                    plt.ylabel(r'reference kernel $K_{{ {},{},{} }}$'.format(ref_layer_num,v,w))
+                    plot_name = '{}_{}_weight_{}_{}_{}.png'.format(arch_name, opt.dataset, i, j, k)
+                plt.scatter(weights_cur, weights_ref)
+                plt.savefig(dir_weights / plot_name, bbox_inches='tight')
 
 
 if __name__ == '__main__':

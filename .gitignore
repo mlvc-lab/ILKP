@@ -7,3 +7,4 @@ models/__pycache__/
 data/
 checkpoint/
 summary/
+plot_weights/
