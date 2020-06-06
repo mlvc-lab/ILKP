@@ -105,9 +105,16 @@ def find_kernel(model, opt):
     ref_norm = ref_layer - ref_mean
     ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
 
-    # TODO: denom이 epsilon보다 작을경우 해당 alpha를 1로 하는 것으로 설정
-    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-5)
-    denom = ref_norm_sq.view(-1, ref_length) + epsilon
+    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-08)
+    if opt.version == 'v2qq-epsv1':
+        # add epsilon to every denom
+        denom = ref_norm_sq.view(-1, ref_length) + epsilon
+    else:
+        denom = ref_norm_sq.view(-1, ref_length)
+    if opt.version == 'v2qq-epsv2':
+        # if denom is 0, set denom to epsilon
+        denom = torch.Tensor([[denom[0][i].item() if torch.is_nonzero(denom[0][i])\
+            else epsilon for i in range(denom.size(1))]])
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -124,6 +131,10 @@ def find_kernel(model, opt):
         for j in range(cur_length):
             numer = torch.matmul(cur_norm[j], ref_norm.T)
             alphas = deepcopy(numer / denom)
+            if opt.version == 'v2qq-epsv3':
+                # if alpha is nan, set alpha to 1.0
+                alphas = torch.Tensor([[1.0 if torch.isnan(alphas[0][i])\
+                    else alphas[0][i].item() for i in range(alphas.size(1))]])
             del numer
             betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
             residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
@@ -142,6 +153,7 @@ def find_kernel(model, opt):
     return idx_all
 
 
+#TODO: pwkernel에도 denom이 0일때 epsilon으로 바꾸는 거랑, alpha가 nan일때 0으로 바꾸는 거 구현 후 둘다 실험.
 def find_kernel_pw(model, opt):
     r"""find the most similar kernel in pointwise convolutional layers using `cuda`
 
@@ -174,7 +186,7 @@ def find_kernel_pw(model, opt):
     ref_norm = ref_layer_slices - ref_mean
     ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-5)
+    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-08)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -189,8 +201,24 @@ def find_kernel_pw(model, opt):
             cur_norm = cur_weight - cur_mean
 
             numer = torch.matmul(cur_norm, ref_norm.T)
-            denom = ref_norm_sq.expand_as(numer) + epsilon
+            if opt.version == 'v2qq-epsv1':
+                denom = ref_norm_sq.expand_as(numer) + epsilon
+            else:
+                denom = ref_norm_sq.expand_as(numer)
+            if opt.version == 'v2qq-epsv2':
+                print(denom)
+                # if denom is 0, set denom to epsilon
+                for i in range(denom.size(0)):
+                    for j in range(denom.size(1)):
+                        if not torch.is_nonzero(denom[i][j]):
+                            denom[i][j] = epsilon
             alphas = deepcopy(numer / denom)
+            if opt.version == 'v2qq-epsv3':
+                # if denom is 0, set denom to epsilon
+                for i in range(alphas.size(0)):
+                    for j in range(alphas.size(1)):
+                        if torch.isnan(alphas[i][j]):
+                            alphas[i][j] = 1.0
             del numer, denom
             betas = cur_mean - alphas * \
                 ref_mean.view(-1, ref_length).expand_as(alphas)
@@ -226,13 +254,13 @@ def save_model(ckpt, indices_all):
     else:
         indices = indices_all
 
-    if opt.version in ['v2qq', 'v2f']:
+    if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
         quantize_ab(indices, num_bits_a=opt.quant_bit_a,
                     num_bits_b=opt.quant_bit_b)
     elif opt.version == 'v2nb':
         quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
-        if opt.version in ['v2qq', 'v2f']:
+        if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
             quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a,
                         num_bits_b=opt.quant_bit_b)
         elif opt.version == 'v2nb':
@@ -244,11 +272,14 @@ def save_model(ckpt, indices_all):
     new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
     if opt.np:
         file_name += '_np'
-    if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+    if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
         new_model_filename += '_q{}'.format(opt.quant_bit)
-        if opt.version in ['v2qq', 'v2f']:
+        if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
             new_model_filename += '{}{}'.format(
                 opt.quant_bit_a, opt.quant_bit_b)
+            if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                new_model_filename += '_eps{}'.format(
+                    opt.epsilon)
         elif opt.version == 'v2nb':
             new_model_filename += '{}'.format(
                 opt.quant_bit_a)

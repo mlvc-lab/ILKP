@@ -11,8 +11,8 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
 import models
+import config
 from utils import *
-from config import config
 from data import DataLoader
 from find_similar_kernel import find_kernel, find_kernel_pw
 from quantize import quantize, quantize_pw, quantize_ab, quantize_alpha
@@ -21,11 +21,28 @@ from quantize import quantize, quantize_pw, quantize_ab, quantize_alpha
 import warnings
 warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
+# for logging
+from sacred import Experiment
+from sacred.observers import MongoObserver
 
-def main():
-    global opt, arch_name
-    opt = config()
+# sacred experiment
+ex = Experiment('WP_MESS')
+ex.observers.append(MongoObserver.create(url=config.MONGO_URI,
+                                         db_name=config.MONGO_DB))
 
+
+@ex.config
+def hyperparam():
+    """
+    sacred exmperiment hyperparams
+    :return:
+    """
+    args = config.config()
+
+
+@ex.main
+def main(args):
+    opt = args
     if opt.cuda and not torch.cuda.is_available():
         raise Exception('No GPU found, please run without --cuda')
 
@@ -89,19 +106,25 @@ def main():
             print('==> Loading Checkpoint \'{}\''.format(opt.ckpt))
             checkpoint = load_model(model, ckpt_file,
                                     main_gpu=opt.gpuids[0], use_cuda=opt.cuda)
-            start_epoch = checkpoint['epoch']
+            epoch = checkpoint['epoch']
+            # logging at sacred
+            ex.log_scalar('best_epoch', epoch)
 
             if opt.new:
+                # logging at sacred
+                ex.log_scalar('version', checkpoint['version'])
+                if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                    ex.log_scalar('epsilon', opt.epsilon)
                 print('===> Change indices to weights..')
                 idxtoweight(model, checkpoint['idx'], checkpoint['version'])
 
             print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
-                opt.ckpt, start_epoch))
+                opt.ckpt, epoch))
 
             # evaluate on validation set
             print('\n===> [ Evaluation ]')
             start_time = time.time()
-            acc1, acc5 = validate(val_loader, model, criterion)
+            acc1, acc5 = validate(opt, val_loader, None, model, criterion)
             elapsed_time = time.time() - start_time
             acc1 = round(acc1.item(), 4)
             acc5 = round(acc5.item(), 4)
@@ -109,7 +132,7 @@ def main():
             save_eval([ckpt_name, acc1, acc5])
             print('====> {:.2f} seconds to evaluate this model\n'.format(
                 elapsed_time))
-            return
+            return acc1
         else:
             print('==> no checkpoint found \'{}\''.format(
                 opt.ckpt))
@@ -126,10 +149,18 @@ def main():
             except:
                 n_retrain = 1
 
+            # logging at sacred
+            ex.log_scalar('n_retrain', n_retrain)
+
             if not opt.quant:
                 if opt.version != checkpoint['version']:
                     print('version argument is different with saved checkpoint version!!')
                     exit()
+
+                # logging at sacred
+                ex.log_scalar('version', checkpoint['version'])
+                if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                    ex.log_scalar('epsilon', opt.epsilon)
 
                 print('===> Change indices to weights..')
                 idxtoweight(model, checkpoint['idx'], opt.version)
@@ -168,7 +199,7 @@ def main():
             # train for one epoch
             print('===> [ Retraining ]')
             start_time = time.time()
-            acc1_train, acc5_train = train(train_loader,
+            acc1_train, acc5_train = train(opt, train_loader,
                 epoch=epoch, model=model,
                 criterion=criterion, optimizer=optimizer)
             elapsed_time = time.time() - start_time
@@ -216,7 +247,7 @@ def main():
             # train for one epoch
             print('===> [ Training ]')
             start_time = time.time()
-            acc1_train, acc5_train = train(train_loader,
+            acc1_train, acc5_train = train(opt, train_loader,
                 epoch=epoch, model=model,
                 criterion=criterion, optimizer=optimizer)
             elapsed_time = time.time() - start_time
@@ -242,7 +273,7 @@ def main():
         # evaluate on validation set
         print('===> [ Validation ]')
         start_time = time.time()
-        acc1_valid, acc5_valid = validate(val_loader, model, criterion)
+        acc1_valid, acc5_valid = validate(opt, val_loader, epoch, model, criterion)
         elapsed_time = time.time() - start_time
         validate_time += elapsed_time
         print('====> {:.2f} seconds to validate this epoch\n'.format(
@@ -267,7 +298,7 @@ def main():
             is_best = acc1_valid > best_acc1
             best_acc1 = max(acc1_valid, best_acc1)
             save_model(arch_name, state, epoch, is_best, opt, n_retrain)
-            save_summary(summary, opt, n_retrain)
+            save_summary(arch_name, summary, opt, n_retrain)
         else:
             # every 'opt.save_epoch' epochs
             if (epoch+1) % opt.save_epoch == 0:
@@ -277,7 +308,7 @@ def main():
                 is_best = acc1_valid > best_acc1
                 best_acc1 = max(acc1_valid, best_acc1)
                 save_model(arch_name, state, epoch, is_best, opt, n_retrain)
-                save_summary(summary, opt, n_retrain)
+                save_summary(arch_name, summary, opt, n_retrain)
 
     # calculate time 
     avg_train_time = train_time / (opt.epochs - start_epoch)
@@ -299,8 +330,12 @@ def main():
     print('====> total training time: {}h {}m {:.2f}s'.format(
         int(total_train_time//3600), int((total_train_time%3600)//60), total_train_time%60))
 
+    return best_acc1
 
-def train(train_loader, **kwargs):
+
+def train(opt, train_loader, **kwargs):
+    r"""train model each epoch
+    """
     epoch = kwargs.get('epoch')
     model = kwargs.get('model')
     criterion = kwargs.get('criterion')
@@ -330,11 +365,11 @@ def train(train_loader, **kwargs):
         loss = criterion(output, target)
         # option 1) add inverse nuclear norm loss
         if opt.nuc_loss:
-            regularizer = new_regularizer(model, 'nuc')
+            regularizer = new_regularizer(opt, model, 'nuc')
             loss += regularizer
         # option 2) add absolute pcc loss
         if opt.pcc_loss:
-            regularizer = new_regularizer(model, 'pcc')
+            regularizer = new_regularizer(opt, model, 'pcc')
             loss += regularizer
 
         # measure accuracy and record loss
@@ -359,10 +394,17 @@ def train(train_loader, **kwargs):
     print('====> Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
 
+    # logging at sacred
+    ex.log_scalar('train.loss', losses.avg, epoch)
+    ex.log_scalar('train.top1', top1.avg.item(), epoch)
+    ex.log_scalar('train.top5', top5.avg.item(), epoch)
+
     return top1.avg, top5.avg
 
 
-def validate(val_loader, model, criterion):
+def validate(opt, val_loader, epoch, model, criterion):
+    r"""validate model each epoch and evaluation
+    """
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
     top1 = AverageMeter('Acc@1', ':6.2f')
@@ -400,10 +442,15 @@ def validate(val_loader, model, criterion):
         print('====> Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
+    # logging at sacred
+    ex.log_scalar('test.loss', losses.avg, epoch)
+    ex.log_scalar('test.top1', top1.avg.item(), epoch)
+    ex.log_scalar('test.top5', top5.avg.item(), epoch)
+
     return top1.avg, top5.avg
 
 
-def new_regularizer(model, regularizer_name='nuc'):
+def new_regularizer(opt, model, regularizer_name='nuc'):
     r"""add new regularizer
 
     Args:
@@ -456,7 +503,7 @@ def new_regularizer(model, regularizer_name='nuc'):
 
 
 #TODO: v2f k fix하고 alpha beta 찾는 방법 코딩
-def find_similar_kernel_n_change(model, version):
+def find_similar_kernel_n_change(opt, model, version):
     r"""find the most similar kernel and change the kernel
 
     Args:
@@ -466,14 +513,14 @@ def find_similar_kernel_n_change(model, version):
     if arch_name in hasPWConvArchs and not opt.np:
         indices_pw = find_kernel_pw(model, opt)
 
-    if version in ['v2qq', 'v2f']:
+    if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
         print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
         quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
     elif version == 'v2nb':
         print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
         quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
-        if version in ['v2qq', 'v2f']:
+        if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
             print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
             quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
         elif version == 'v2nb':
@@ -488,7 +535,7 @@ def find_similar_kernel_n_change(model, version):
     return indices
 
 
-def idxtoweight(model, indices_all, version):
+def idxtoweight(opt, model, indices_all, version):
     r"""change indices to weights
 
     Args:
@@ -544,7 +591,7 @@ def idxtoweight(model, indices_all, version):
 
 if __name__ == '__main__':
     start_time = time.time()
-    main()
+    ex.run()
     elapsed_time = time.time() - start_time
     print('====> total time: {}h {}m {:.2f}s'.format(
         int(elapsed_time//3600), int((elapsed_time%3600)//60), elapsed_time%60))

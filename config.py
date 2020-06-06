@@ -12,6 +12,9 @@ r'''version list
   - v2
   - v2q (quantization ver)
   - v2qq (quantization ver with alpha, beta qunatization)
+    - v2qq-epsv1 (add epsilon to every denom with v2qq)
+    - v2qq-epsv2 (if denom is 0, set denom to epsilon with v2qq)
+    - v2qq-epsv3 (if alpha is nan, set alpha to 1.0 with v2qq)
   - v2f (fixed index $k$ during retraining time with v2qqpq)
   - v2nb (no $\beta$ with v2qqpq)
     - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
@@ -20,8 +23,13 @@ r'''version list
 '''
 versions = [
     'v2', 'v2q', 'v2qq', 'v2f', 'v2nb', #'v2.5',
+    'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3',
     # 'v3',
 ]
+
+# sacred setting
+MONGO_URI = 'mongodb://mlvc:mlvcdatabase!@mlvc.khu.ac.kr:31912'
+MONGO_DB = 'training'
 
 
 def config():
@@ -54,8 +62,8 @@ def config():
     parser.add_argument('--wd', '--weight-decay', default=5e-4, type=float,
                         metavar='W', help='weight decay (default: 5e-4)',
                         dest='weight_decay')
-    parser.add_argument('--nesterov', dest='nesterov', action='store_true',
-                        help='use nesterov momentum?')
+    # parser.add_argument('--nesterov', dest='nesterov', action='store_true',
+    #                     help='use nesterov momentum?')
     parser.add_argument('--layers', default=16, type=int, metavar='N',
                         help='number of layers in VGG/ResNet/WideResNet (default: 16)')
     parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
@@ -97,10 +105,10 @@ def config():
     parser.add_argument('-pws', '--pwkernel-stride', default=1, type=int, metavar='N',
                         dest='pwkernel_stride',
                         help='the number of pwkernel stride size in reference layer '
-                             '(default: 8)')
+                             '(default: 1)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
-    parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-5, type=float, metavar='EPS',
+    parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-8, type=float, metavar='EPS',
                         help='epsilon for denominator of alpha in find_kernel (default: 1e-5)')
     parser.add_argument('-s', '--save-epoch', default=5, type=int, metavar='N',
                         dest='save_epoch',

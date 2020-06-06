@@ -65,19 +65,22 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
             file_name += '_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 if opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
+                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                        file_name += '_eps{}'.format(
+                            opt.epsilon)
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -92,19 +95,22 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
             file_name += '_new_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 if opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
+                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                        file_name += '_eps{}'.format(
+                            opt.epsilon)
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -121,17 +127,13 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
         shutil.copyfile(model_file, dir_path / file_name_best)
 
 
-def save_summary(summary, opt, n_retrain):
+def save_summary(arch_name, summary, opt, n_retrain):
     r"""Save summary i.e. top-1/5 validation accuracy in each epoch
     under `summary` directory
     """
     dir_summary = pathlib.Path('summary')
     dir_path = dir_summary / 'csv'
     dir_path.mkdir(parents=True, exist_ok=True)
-
-    arch_name = opt.arch
-    if opt.arch in hasDiffLayersArchs:
-        arch_name += str(opt.layers)
 
     file_name = '{}_{}'.format(arch_name, opt.dataset)
     if opt.retrain:
@@ -140,7 +142,7 @@ def save_summary(summary, opt, n_retrain):
             file_name += '_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.np:
                     file_name += '_np'
                 if opt.nuc_loss:
@@ -148,13 +150,16 @@ def save_summary(summary, opt, n_retrain):
                 if opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
+                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                        file_name += '_eps{}'.format(
+                            opt.epsilon)
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -169,19 +174,22 @@ def save_summary(summary, opt, n_retrain):
             file_name += '_new_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
                 elif opt.pcc_loss:
                     file_name += '_pl{}'.format(opt.pls)
                 file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     if opt.version == 'v2nb':
                         file_name += '{}'.format(
                             opt.quant_bit_a)
                     else:
                         file_name += '{}{}'.format(
                             opt.quant_bit_a, opt.quant_bit_b)
+                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                        file_name += '_eps{}'.format(
+                            opt.epsilon)
             else:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)

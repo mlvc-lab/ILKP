@@ -13,7 +13,10 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 - `torchvision 0.4+`
 - `numpy`
 - `tqdm`
+- `rich` (for beautiful log on console) (not yet)
 - `requests` (for downloading pretrained checkpoint and imagenet dataset)
+- `sacred` (for logging on omniboard)
+- `pymongo` (for logging on omniboard)
 
 ----------
 
@@ -23,6 +26,9 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2
   - v2q (quantization ver)
   - v2qq (quantization ver with alpha, beta quantization)
+    - v2qq-epsv1 (add epsilon to every denom with v2qq)
+    - v2qq-epsv2 (if denom is 0, set denom to epsilon with v2qq)
+    - v2qq-epsv3 (if alpha is nan, set alpha to 1.0 with v2qq)
   - v2f (fixed index $k$ during retraining time with v2qq)
   - v2nb (no $\beta$ with v2qq)
     - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
