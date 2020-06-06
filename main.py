@@ -116,7 +116,7 @@ def main(args):
                 if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     ex.log_scalar('epsilon', opt.epsilon)
                 print('===> Change indices to weights..')
-                idxtoweight(model, checkpoint['idx'], checkpoint['version'])
+                idxtoweight(opt, model, checkpoint['idx'], checkpoint['version'])
 
             print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
                 opt.ckpt, epoch))
@@ -163,7 +163,7 @@ def main(args):
                     ex.log_scalar('epsilon', opt.epsilon)
 
                 print('===> Change indices to weights..')
-                idxtoweight(model, checkpoint['idx'], opt.version)
+                idxtoweight(opt, model, checkpoint['idx'], opt.version)
 
             print('==> Loaded Checkpoint \'{}\' (epoch {})'.format(
                 opt.ckpt, checkpoint['epoch']))
@@ -181,7 +181,7 @@ def main(args):
         adjust_learning_rate(optimizer, epoch, opt)
         if opt.retrain:
             if opt.new:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     print('\n==> {}/{} {}-th {}bit retraining'.format(
                         arch_name, opt.dataset, n_retrain, opt.quant_bit))
                 else:
@@ -208,7 +208,7 @@ def main(args):
                 elapsed_time))
             start_time = time.time()
             if opt.new:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
                     quantize(model, opt, opt.quant_bit)
                     if arch_name in hasPWConvArchs:
@@ -233,7 +233,7 @@ def main(args):
                 print('\n==> {}/{} training'.format(
                     arch_name, opt.dataset))
             else:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     print('\n==> {}/{}-new_{} {}bit training'.format(
                         arch_name, opt.dataset, opt.version, opt.quant_bit))
                 else:
@@ -256,7 +256,7 @@ def main(args):
                 elapsed_time))
             start_time = time.time()
             if opt.new:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                     print('===> Quantization...')
                     quantize(model, opt, opt.quant_bit)
                     if arch_name in hasPWConvArchs:
