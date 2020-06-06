@@ -217,7 +217,7 @@ def main(args):
                 # every 'opt.save_epoch' epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
-                    indices = find_similar_kernel_n_change(model, opt.version)
+                    indices = find_similar_kernel_n_change(opt, model, opt.version)
             else:
                 if opt.quant:
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
@@ -265,7 +265,7 @@ def main(args):
                 # every 5 epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
-                    indices = find_similar_kernel_n_change(model, opt.version)
+                    indices = find_similar_kernel_n_change(opt, model, opt.version)
             elapsed_time = time.time() - start_time
             extra_time += elapsed_time
             print('====> {:.2f} seconds for extra time this epoch\n'.format(
