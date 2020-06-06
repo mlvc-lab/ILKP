@@ -50,6 +50,9 @@ def main(args):
     # set model name
     arch_name = set_arch_name(opt)
 
+    # logging at sacred
+    ex.log_scalar('architecture', arch_name)
+
     print('\n=> creating model \'{}\''.format(arch_name))
     model = models.__dict__[opt.arch](data=opt.dataset, num_layers=opt.layers,
                                       width_mult=opt.width_mult, batch_norm=opt.bn)
@@ -531,7 +534,7 @@ def find_similar_kernel_n_change(opt, model, version):
 
     # change idx to kernel
     print('===> Change indices to weights..')
-    idxtoweight(model, indices, version)
+    idxtoweight(opt, model, indices, version)
 
     return indices
 
