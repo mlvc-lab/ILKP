@@ -42,6 +42,7 @@ def hyperparam():
 
 @ex.main
 def main(args):
+    global arch_name
     opt = args
     if opt.cuda and not torch.cuda.is_available():
         raise Exception('No GPU found, please run without --cuda')
