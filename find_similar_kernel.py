@@ -113,8 +113,8 @@ def find_kernel(model, opt):
         denom = ref_norm_sq.view(-1, ref_length)
     if opt.version == 'v2qq-epsv2':
         # if denom is 0, set denom to epsilon
-        denom = torch.Tensor([[denom[0][i].item() if torch.is_nonzero(denom[0][i])\
-            else epsilon for i in range(denom.size(1))]])
+        zero = torch.zeros_like(denom)
+        denom[~denom.ne(zero)] = epsilon
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -133,10 +133,7 @@ def find_kernel(model, opt):
             alphas = deepcopy(numer / denom)
             if opt.version == 'v2qq-epsv3':
                 # if alpha is nan, set alpha to 1.0
-                # alphas = torch.Tensor([[1.0 if torch.isnan(alphas[0][i])\
-                #     else alphas[0][i].item() for i in range(alphas.size(1))]])
-                bool_alpha = torch.isnan(alphas).float()
-                alphas += bool_alpha
+                alphas[alphas.ne(alphas)] = 1.0
             del numer
             betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
             residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
@@ -209,15 +206,12 @@ def find_kernel_pw(model, opt):
                 denom = ref_norm_sq.expand_as(numer)
             if opt.version == 'v2qq-epsv2':
                 # if denom is 0, set denom to epsilon
-                for i in range(denom.size(0)):
-                    for j in range(denom.size(1)):
-                        if not torch.is_nonzero(denom[i][j]):
-                            denom[i][j].data = epsilon
+                zero = torch.zeros_like(denom)
+                denom[~denom.ne(zero)] = epsilon
             alphas = deepcopy(numer / denom)
             if opt.version == 'v2qq-epsv3':
                 # if denom is 0, set denom to epsilon
-                bool_alpha = torch.isnan(alphas).float()
-                alphas += bool_alpha
+                alphas[alphas.ne(alphas)] = 1.0
             del numer, denom
             betas = cur_mean - alphas * \
                 ref_mean.view(-1, ref_length).expand_as(alphas)
