@@ -569,24 +569,29 @@ def idxtoweight(opt, model, indices_all, version):
 
     if arch_name in hasPWConvArchs and not opt.np:
         if version.find('v2') != -1:
-            d = opt.pw_bind_size
+            pwd = opt.pw_bind_size
+            pws = opt.pwkernel_stride
             ref_layer = torch.Tensor(w_pwkernel[ref_layer_num])
             ref_layer = ref_layer.view(ref_layer.size(0), ref_layer.size(1))
             ref_layer_slices = None
-            num_slices_per_kernel = ref_layer.size(1) - d + 1
-            for i in range(num_slices_per_kernel):
+            num_slices = (ref_layer.size(1) - pwd) // pws + 1
+            for i in range(0, ref_layer.size(1) - pwd + 1, pws):
                 if ref_layer_slices == None:
-                    ref_layer_slices = ref_layer[:,i:i+d]
+                    ref_layer_slices = ref_layer[:,i:i+pwd]
                 else:
-                    ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:,i:i+d]), dim=1)
-            ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices_per_kernel, d)
-            ref_layer_slices = ref_layer_slices.view(-1, d, 1, 1).numpy()
+                    ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:,i:i+pwd]), dim=1)
+            if ((ref_layer.size(1) - pwd) % pws) != 0:
+                ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:, -pwd:]), dim=1)
+                num_slices += 1
+            ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices, pwd)
+            ref_layer_slices = ref_layer_slices.view(-1, pwd, 1, 1).numpy()
+            #TODO: pwd pws에 맞게 잘 동작하는지 확인해야됨..
             for i in tqdm(range(1, num_pwlayer), ncols=80, unit='layer'):
                 for j in range(len(w_pwkernel[i])):
-                    num_slices = len(w_pwkernel[i][j])//d
+                    num_slices = len(w_pwkernel[i][j])//pwd
                     for k in range(num_slices):
                         ref_idx, alpha, beta = indices_pw[i-1][j*num_slices+k]
-                        w_pwkernel[i][j][k*d:(k+1)*d] = alpha * ref_layer_slices[ref_idx] + beta
+                        w_pwkernel[i][j][k*pwd:(k+1)*pwd] = alpha * ref_layer_slices[ref_idx] + beta
 
     set_kernel(w_kernel, model, opt)
     if arch_name in hasPWConvArchs and not opt.np:

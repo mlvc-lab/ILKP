@@ -263,6 +263,8 @@ def save_model(ckpt, indices_all):
     new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
     if opt.np:
         file_name += '_np'
+    elif arch_name in hasPWConvArchs:
+        file_name += '_pwd{}_pws{}'.format(opt.pwd, opt.pws)
     if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
         new_model_filename += '_q{}'.format(opt.quant_bit)
         if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:

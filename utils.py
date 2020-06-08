@@ -65,6 +65,8 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
             file_name += '_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
+            elif arch_name in hasPWConvArchs:
+                file_name += '_pwd{}_pws{}'.format(opt.pwd, opt.pws)
             if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -95,6 +97,8 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
             file_name += '_new_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
+            elif arch_name in hasPWConvArchs:
+                file_name += '_pwd{}_pws{}'.format(opt.pwd, opt.pws)
             if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
@@ -142,6 +146,8 @@ def save_summary(arch_name, summary, opt, n_retrain):
             file_name += '_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
+            elif arch_name in hasPWConvArchs:
+                file_name += '_pwd{}_pws{}'.format(opt.pwd, opt.pws)
             if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.np:
                     file_name += '_np'
@@ -174,6 +180,8 @@ def save_summary(arch_name, summary, opt, n_retrain):
             file_name += '_new_{}'.format(opt.version)
             if opt.np:
                 file_name += '_np'
+            elif arch_name in hasPWConvArchs:
+                file_name += '_pwd{}_pws{}'.format(opt.pwd, opt.pws)
             if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
                 if opt.nuc_loss:
                     file_name += '_nl{}'.format(opt.nls)
