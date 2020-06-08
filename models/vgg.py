@@ -207,7 +207,7 @@ def vgg(data='cifar10', **kwargs):
     r"""VGG models from "[Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)"
 
     Args:
-        data: the name of datasets
+        data (str): the name of datasets
     """
     num_layers = str(kwargs.get('num_layers'))
     batch_norm = kwargs.get('batch_norm')

@@ -20,8 +20,8 @@ from copy import deepcopy
 
 import models
 from config import config
-from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, set_arch_name, get_kernel, get_pwkernel, set_kernel, set_pwkernel
-from quantize import quantize, quantize_pw, quantize_ab, quantize_alpha
+from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, set_arch_name, get_kernel
+from quantize import quantize, quantize_ab
 
 
 def main():
@@ -66,7 +66,7 @@ def main():
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt, opt.quant_bit)
             if arch_name in hasPWConvArchs and not opt.np:
-                quantize_pw(model, opt, opt.quant_bit)
+                quantize(model, opt, opt.quant_bit, is_pw=True)
         print('==> Find the most similar kernel in reference layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         indices = find_kernel(model, opt)
@@ -83,10 +83,10 @@ def main():
 
 
 def find_kernel(model, opt):
-    r"""find the most similar kernel
+    r"""Find the most similar kernel
 
     Return:
-        idx_all(list): indices of similar kernels with $\alpha$ and $\beta$.
+        idx_all (list): indices of similar kernels with $\alpha$ and $\beta$.
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
@@ -103,18 +103,14 @@ def find_kernel(model, opt):
     ref_length = ref_layer.size()[0]
     ref_mean = ref_layer.mean(dim=1, keepdim=True)
     ref_norm = ref_layer - ref_mean
-    ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
+    denom = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-08)
-    if opt.version == 'v2qq-epsv1':
-        # add epsilon to every denom
-        denom = ref_norm_sq.view(-1, ref_length) + epsilon
-    else:
-        denom = ref_norm_sq.view(-1, ref_length)
-    if opt.version == 'v2qq-epsv2':
-        # if denom is 0, set denom to epsilon
-        zero = torch.zeros_like(denom)
-        denom[~denom.ne(zero)] = epsilon
+    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
+    if opt.version == 'v2qq-epsv1': # add epsilon to every denom
+        denom += epsilon
+    elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
+        denom[denom.eq(0.0)] = epsilon
+    denom = denom.view(-1, ref_length)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -131,10 +127,11 @@ def find_kernel(model, opt):
         for j in range(cur_length):
             numer = torch.matmul(cur_norm[j], ref_norm.T)
             alphas = deepcopy(numer / denom)
-            if opt.version == 'v2qq-epsv3':
-                # if alpha is nan, set alpha to 1.0
-                alphas[alphas.ne(alphas)] = 1.0
             del numer
+
+            if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
+                alphas[alphas.ne(alphas)] = 1.0
+
             betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
             residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
                 cur_weight[j].expand_as(ref_layer)
@@ -145,21 +142,22 @@ def find_kernel(model, opt):
             ref_idx = (k, alpha, beta)
             idx.append(ref_idx)
             del alphas, betas, residual_mat
+
         del cur_weight, cur_norm, cur_mean, cur_length
         idx_all.append(idx)
-    del ref_layer, ref_mean, ref_norm, ref_norm_sq
+
+    del ref_layer, ref_mean, ref_norm, denom
 
     return idx_all
 
 
-#TODO: pwkernel에도 denom이 0일때 epsilon으로 바꾸는 거랑, alpha가 nan일때 0으로 바꾸는 거 구현 후 둘다 실험.
 def find_kernel_pw(model, opt):
-    r"""find the most similar kernel in pointwise convolutional layers using `cuda`
+    r"""Find the most similar kernel in pointwise convolutional layers using `cuda`
 
     Return:
-        idx_all(list): indices of similar kernels with $\alpha$ and $\beta$.
+        idx_all (list): indices of similar kernels with $\alpha$ and $\beta$.
     """
-    w_kernel = get_pwkernel(model, opt)
+    w_kernel = get_kernel(model, opt, is_pw=True)
     num_layer = len(w_kernel)
     pwd = opt.pw_bind_size
     pws = opt.pwkernel_stride
@@ -183,9 +181,13 @@ def find_kernel_pw(model, opt):
     ref_length = ref_layer_slices.size(0)
     ref_mean = ref_layer_slices.mean(dim=1, keepdim=True)
     ref_norm = ref_layer_slices - ref_mean
-    ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
+    _denom = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon  # epsilon for non-zero denom (default: 1e-08)
+    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
+    if opt.version == 'v2qq-epsv1': # add epsilon to every denom
+        _denom += epsilon
+    elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
+        _denom[_denom.eq(0.0)] = epsilon
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -200,21 +202,14 @@ def find_kernel_pw(model, opt):
             cur_norm = cur_weight - cur_mean
 
             numer = torch.matmul(cur_norm, ref_norm.T)
-            if opt.version == 'v2qq-epsv1':
-                denom = ref_norm_sq.expand_as(numer) + epsilon
-            else:
-                denom = ref_norm_sq.expand_as(numer)
-            if opt.version == 'v2qq-epsv2':
-                # if denom is 0, set denom to epsilon
-                zero = torch.zeros_like(denom)
-                denom[~denom.ne(zero)] = epsilon
+            denom = deepcopy(_denom.expand_as(numer))
             alphas = deepcopy(numer / denom)
-            if opt.version == 'v2qq-epsv3':
-                # if denom is 0, set denom to epsilon
-                alphas[alphas.ne(alphas)] = 1.0
             del numer, denom
-            betas = cur_mean - alphas * \
-                ref_mean.view(-1, ref_length).expand_as(alphas)
+
+            if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
+                alphas[alphas.ne(alphas)] = 1.0
+
+            betas = cur_mean - alphas * ref_mean.view(-1, ref_length).expand_as(alphas)
             for idx_cur_slice in range(cur_length):
                 cur_alphas = alphas[idx_cur_slice].view(ref_length, -1)
                 cur_betas = betas[idx_cur_slice].view(ref_length, -1)
@@ -229,18 +224,21 @@ def find_kernel_pw(model, opt):
                 # beta = deepcopy(betas[idx_cur_slice][k].item())
                 ref_idx = (k, alpha, beta)
                 idx.append(ref_idx)
+
             del alphas, betas, cur_alphas, cur_weight, cur_betas, cur_norm, cur_mean, cur_length
             torch.cuda.empty_cache()
+
         del cur_layer
         torch.cuda.empty_cache()
         idx_all.append(idx)
-    del ref_layer, ref_mean, ref_norm, ref_norm_sq
+
+    del ref_layer, ref_mean, ref_norm, _denom
 
     return idx_all
 
 
 def save_model(ckpt, indices_all):
-    r"""save new model
+    r"""Save new model
     """
     if arch_name in hasPWConvArchs and not opt.np:
         indices, indices_pw = indices_all
@@ -251,13 +249,13 @@ def save_model(ckpt, indices_all):
         quantize_ab(indices, num_bits_a=opt.quant_bit_a,
                     num_bits_b=opt.quant_bit_b)
     elif opt.version == 'v2nb':
-        quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
         if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
             quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a,
                         num_bits_b=opt.quant_bit_b)
         elif opt.version == 'v2nb':
-            quantize_alpha(indices_pw, num_bits_a=opt.quant_bit_a)
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     ckpt['idx'] = indices
@@ -286,7 +284,7 @@ def save_model(ckpt, indices_all):
 
 
 def weight_analysis(model, ckpt):
-    r"""analysis of dwkernel weights
+    r"""Analysis of dwkernel weights
     """
     import random
     import matplotlib

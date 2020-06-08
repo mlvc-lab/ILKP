@@ -324,7 +324,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 def set_arch_name(opt):
-    r"""set architecture name
+    r"""Set architecture name
     """
     arch_name = deepcopy(opt.arch)
     if opt.arch in hasDiffLayersArchs:
@@ -339,69 +339,68 @@ def set_arch_name(opt):
     return arch_name
 
 
-def get_kernel(model, opt):
-    r"""get all convolutional kernel weights in model for dwkernel
+def get_kernel(model, opt, is_pw:bool=False):
+    r"""Get all convolutional kernel weights in model
+
+    Args:
+        is_pw (bool): If you want to get pwkernels weigts, set this parameter `True`.
     """
-    if opt.arch in hasDWConvArchs:
-        try:
-            w_kernel = model.module.get_weights_dwconv(use_cuda=True)
-        except:
-            if opt.cuda:
-                w_kernel = model.get_weights_dwconv(use_cuda=True)
-            else:
-                w_kernel = model.get_weights_dwconv(use_cuda=False)
+    if not is_pw:
+        if opt.arch in hasDWConvArchs:
+            try:
+                w_kernel = model.module.get_weights_dwconv(use_cuda=True)
+            except:
+                if opt.cuda:
+                    w_kernel = model.get_weights_dwconv(use_cuda=True)
+                else:
+                    w_kernel = model.get_weights_dwconv(use_cuda=False)
+        else:
+            try:
+                w_kernel = model.module.get_weights_conv(use_cuda=True)
+            except:
+                if opt.cuda:
+                    w_kernel = model.get_weights_conv(use_cuda=True)
+                else:
+                    w_kernel = model.get_weights_conv(use_cuda=False)
     else:
         try:
-            w_kernel = model.module.get_weights_conv(use_cuda=True)
+            w_kernel = model.module.get_weights_pwconv(use_cuda=True)
         except:
             if opt.cuda:
-                w_kernel = model.get_weights_conv(use_cuda=True)
+                w_kernel = model.get_weights_pwconv(use_cuda=True)
             else:
-                w_kernel = model.get_weights_conv(use_cuda=False)
+                w_kernel = model.get_weights_pwconv(use_cuda=False)
     return w_kernel
 
 
-def get_pwkernel(model, opt):
-    r"""get all pointwise convolutional kernel weights in model for pwkernel
+def set_kernel(w_kernel, model, opt, is_pw:bool=False):
+    r"""Set all convolutional kernel weights in model
+
+    Args:
+        is_pw (bool): If you want to set pointwise convolution weigts, set this parameter `True`.
     """
-    try:
-        w_kernel = model.module.get_weights_pwconv(use_cuda=True)
-    except:
-        if opt.cuda:
-            w_kernel = model.get_weights_pwconv(use_cuda=True)
+    if not is_pw:
+        if opt.arch in hasDWConvArchs:
+            try:
+                model.module.set_weights_dwconv(w_kernel, use_cuda=True)
+            except:
+                if opt.cuda:
+                    model.set_weights_dwconv(w_kernel, use_cuda=True)
+                else:
+                    model.set_weights_dwconv(w_kernel, use_cuda=False)
         else:
-            w_kernel = model.get_weights_pwconv(use_cuda=False)
-    return w_kernel
-
-
-def set_kernel(w_kernel, model, opt):
-    r"""set all convolutional kernel weights in model
-    """
-    if opt.arch in hasDWConvArchs:
-        try:
-            model.module.set_weights_dwconv(w_kernel, use_cuda=True)
-        except:
-            if opt.cuda:
-                model.set_weights_dwconv(w_kernel, use_cuda=True)
-            else:
-                model.set_weights_dwconv(w_kernel, use_cuda=False)
+            try:
+                model.module.set_weights_conv(w_kernel, use_cuda=True)
+            except:
+                if opt.cuda:
+                    model.set_weights_conv(w_kernel, use_cuda=True)
+                else:
+                    model.set_weights_conv(w_kernel, use_cuda=False)
     else:
         try:
-            model.module.set_weights_conv(w_kernel, use_cuda=True)
+            model.module.set_weights_pwconv(w_kernel, use_cuda=True)
         except:
             if opt.cuda:
-                model.set_weights_conv(w_kernel, use_cuda=True)
+                model.set_weights_pwconv(w_kernel, use_cuda=True)
             else:
-                model.set_weights_conv(w_kernel, use_cuda=False)
-
-
-def set_pwkernel(w_kernel, model, opt):
-    r"""set all pointwise convolutional kernel weights in model
-    """
-    try:
-        model.module.set_weights_pwconv(w_kernel, use_cuda=True)
-    except:
-        if opt.cuda:
-            model.set_weights_pwconv(w_kernel, use_cuda=True)
-        else:
-            model.set_weights_pwconv(w_kernel, use_cuda=False)
+                model.set_weights_pwconv(w_kernel, use_cuda=False)

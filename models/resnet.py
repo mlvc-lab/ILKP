@@ -536,7 +536,7 @@ def resnet(data='cifar10', **kwargs):
     r"""ResNet models from "[Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)"
 
     Args:
-        data: the name of datasets
+        data (str): the name of datasets
     """
     num_layers = str(kwargs.get('num_layers'))
     width_mult = kwargs.get('width_mult')
@@ -562,7 +562,7 @@ def wideresnet(data='imagenet', **kwargs):
     r"""WideResNet models from "[Wide Residual Networks](https://arxiv.org/abs/1605.07146)"
 
     Args:
-        data: the name of datasets
+        data (str): the name of datasets
     """
     num_layers = str(kwargs.get('num_layers'))
     width_mult = kwargs.get('width_mult')

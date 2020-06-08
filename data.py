@@ -9,6 +9,9 @@ valid_datasets = [
 
 
 def _verify_dataset(dataset):
+    r"""verify your dataset.  
+    If your dataset name is unknown dataset, raise error message..
+    """
     if dataset not in valid_datasets:
         msg = "Unknown dataset \'{}\'. ".format(dataset)
         msg += "Valid datasets are {}.".format(", ".join(valid_datasets))
@@ -155,6 +158,8 @@ def tinyimagenet_loader(batch_size, num_workers):
 
 
 def DataLoader(batch_size, num_workers, dataset='cifar10', datapath='../data', cuda=True):
+    r"""Dataloader for training/validation
+    """
     DataSet = _verify_dataset(dataset)
     if DataSet == 'cifar10':
         return cifar10_loader(batch_size, num_workers, datapath, cuda)

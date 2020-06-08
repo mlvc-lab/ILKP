@@ -9,7 +9,7 @@ import numpy as np
 
 import models
 from config import config
-from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, set_arch_name, get_kernel, get_pwkernel, set_kernel, set_pwkernel
+from utils import hasDiffLayersArchs, hasPWConvArchs, load_model, set_arch_name, get_kernel, set_kernel
 
 
 def main():
@@ -54,11 +54,11 @@ def main():
         exit()
 
 
-def save_quantized_model(model, ckpt, num_bits=8):
+def save_quantized_model(model, ckpt, num_bits: int=8):
     """save quantized model"""
     quantize(model, opt, num_bits=num_bits)
     if arch_name in hasPWConvArchs:
-        quantize_pw(model, opt, num_bits=num_bits)
+        quantize(model, opt, num_bits=num_bits, is_pw=True)
 
     ckpt['model'] = model.state_dict()
 
@@ -70,13 +70,14 @@ def save_quantized_model(model, ckpt, num_bits=8):
     return new_model_filename
 
 
-def quantize(model, opt, num_bits=8):
-    r"""quantize weights of convolution kernels
+def quantize(model, opt, num_bits: int=8, is_pw: bool=False):
+    r"""Quantize weights of convolution kernels
 
     Args:
-        num_bits(int): number of bits for quantization
+        num_bits (int): number of bits for quantization
+        is_pw (bool): If you want to quantize pointwise convolution weigts, set this parameter `True`.
     """
-    w_kernel = get_kernel(model, opt)
+    w_kernel = get_kernel(model, opt, is_pw=is_pw)
     num_layer = len(w_kernel)
 
     qmin = -2.**(num_bits - 1.)
@@ -89,74 +90,21 @@ def quantize(model, opt, num_bits=8):
         w_kernel[i] = np.around(np.clip(w_kernel[i] / scale, qmin, qmax))
         w_kernel[i] = scale * w_kernel[i]
     
-    set_kernel(w_kernel, model, opt)
+    set_kernel(w_kernel, model, opt, is_pw=is_pw)
 
 
-def quantize_pw(model, opt, num_bits=8):
-    r"""quantize weights of pointwise covolution kernels
-
-    Args:
-        num_bits(int): number of bits for quantization
-    """
-    w_kernel = get_pwkernel(model, opt)
-    num_layer = len(w_kernel)
-
-    qmin = -2.**(num_bits - 1.)
-    qmax = 2.**(num_bits -1.) -1.
-
-    for i in tqdm(range(num_layer), ncols=80, unit='layer'):
-        min_val = np.amin(w_kernel[i])
-        max_val = np.amax(w_kernel[i])
-        scale = (max_val - min_val) / (qmax - qmin)
-        w_kernel[i] = np.around(np.clip(w_kernel[i] / scale, qmin, qmax))
-        w_kernel[i] = scale * w_kernel[i]
-    
-    set_pwkernel(w_kernel, model, opt)
-
-
-def quantize_ab(indices, num_bits_a=8, num_bits_b=8):
+def quantize_ab(indices, num_bits_a: int=8, num_bits_b=None):
     r"""quantize $\alpha$ and $\beta$
 
     Args:
-        num_bits_a(int): number of bits for quantizing $\alpha$
-        num_bits_b(int): number of bits for quantiznig $\beta$
+        num_bits_a (int): number of bits for quantizing $\alpha$
+        num_bits_b (int): number of bits for quantiznig $\beta$, if this parameter is None, just quantize $\alpha$.
     """
     qmin_a = -2.**(num_bits_a - 1.)
     qmax_a = 2.**(num_bits_a - 1.) - 1.
-    qmin_b = -2.**(num_bits_b - 1.)
-    qmax_b = 2.**(num_bits_b - 1.) - 1.
-
-    for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
-        k = []
-        alphas = []
-        betas = []
-        for j in range(len(indices[i])):
-            _k, _alpha, _beta = indices[i][j]
-            k.append(_k)
-            alphas.append(_alpha)
-            betas.append(_beta)
-        min_val_a = np.amin(alphas)
-        max_val_a = np.amax(alphas)
-        min_val_b = np.amin(betas)
-        max_val_b = np.amax(betas)
-        scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
-        scale_b = (max_val_b - min_val_b) / (qmax_b - qmin_b)
-        alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
-        betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
-        alphas = scale_a * alphas
-        betas = scale_b * betas
-        for j in range(len(indices[i])):
-            indices[i][j] = k[j], alphas[j], betas[j]
-
-
-def quantize_alpha(indices, num_bits_a=8):
-    r"""quantize $\alpha$
-
-    Args:
-        num_bits_a(int): number of bits for quantizing $\alpha$
-    """
-    qmin_a = -2.**(num_bits_a - 1.)
-    qmax_a = 2.**(num_bits_a - 1.) - 1.
+    if num_bits_b is not None:
+        qmin_b = -2.**(num_bits_b - 1.)
+        qmax_b = 2.**(num_bits_b - 1.) - 1.
 
     for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
         k = []
@@ -172,6 +120,12 @@ def quantize_alpha(indices, num_bits_a=8):
         scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
         alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
         alphas = scale_a * alphas
+        if num_bits_a is not None:
+            min_val_b = np.amin(betas)
+            max_val_b = np.amax(betas)
+            scale_b = (max_val_b - min_val_b) / (qmax_b - qmin_b)
+            betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
+            betas = scale_b * betas
         for j in range(len(indices[i])):
             indices[i][j] = k[j], alphas[j], betas[j]
 

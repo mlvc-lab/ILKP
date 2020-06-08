@@ -15,13 +15,13 @@ import config
 from utils import *
 from data import DataLoader
 from find_similar_kernel import find_kernel, find_kernel_pw
-from quantize import quantize, quantize_pw, quantize_ab, quantize_alpha
+from quantize import quantize, quantize_ab
 
 # for ignore imagenet PIL EXIF UserWarning
 import warnings
 warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
-# for logging
+# for sacred logging
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
@@ -216,7 +216,7 @@ def main(args):
                     print('==> {}bit Quantization...'.format(opt.quant_bit))
                     quantize(model, opt, opt.quant_bit)
                     if arch_name in hasPWConvArchs:
-                        quantize_pw(model, opt, opt.quant_bit)
+                        quantize(model, opt, opt.quant_bit, is_pw=True)
                 # every 'opt.save_epoch' epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
@@ -227,7 +227,7 @@ def main(args):
                     quantize(model, opt, opt.quant_bit)
                     if arch_name in hasPWConvArchs:
                         print('==> {}bit pwconv Quantization...'.format(opt.quant_bit))
-                        quantize_pw(model, opt, opt.quant_bit)
+                        quantize(model, opt, opt.quant_bit, is_pw=True)
             elapsed_time = time.time() - start_time
             extra_time += elapsed_time
             print('====> {:.2f} seconds for extra time this epoch\n'.format(
@@ -264,7 +264,7 @@ def main(args):
                     print('===> Quantization...')
                     quantize(model, opt, opt.quant_bit)
                     if arch_name in hasPWConvArchs:
-                        quantize_pw(model, opt, opt.quant_bit)
+                        quantize(model, opt, opt.quant_bit, is_pw=True)
                 # every 5 epochs
                 if (epoch+1) % opt.save_epoch == 0:
                     print('===> Change kernels using {}'.format(opt.version))
@@ -338,7 +338,7 @@ def main(args):
 
 
 def train(opt, train_loader, **kwargs):
-    r"""train model each epoch
+    r"""Train model each epoch
     """
     epoch = kwargs.get('epoch')
     model = kwargs.get('model')
@@ -407,7 +407,7 @@ def train(opt, train_loader, **kwargs):
 
 
 def validate(opt, val_loader, epoch, model, criterion):
-    r"""validate model each epoch and evaluation
+    r"""Validate model each epoch and evaluation
     """
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -455,10 +455,10 @@ def validate(opt, val_loader, epoch, model, criterion):
 
 
 def new_regularizer(opt, model, regularizer_name='nuc'):
-    r"""add new regularizer
+    r"""Add new regularizer
 
     Args:
-        regularizer_name(str): name of regularizer
+        regularizer_name (str): name of regularizer
     """
     d = opt.bind_size
     if opt.arch in hasDiffLayersArchs:
@@ -508,10 +508,10 @@ def new_regularizer(opt, model, regularizer_name='nuc'):
 
 #TODO: v2f k fix하고 alpha beta 찾는 방법 코딩
 def find_similar_kernel_n_change(opt, model, version):
-    r"""find the most similar kernel and change the kernel
+    r"""Find the most similar kernel and change the kernel
 
     Args:
-        version(str): version name of new method
+        version (str): version name of new method
     """
     indices = find_kernel(model, opt)
     if arch_name in hasPWConvArchs and not opt.np:
@@ -522,14 +522,14 @@ def find_similar_kernel_n_change(opt, model, version):
         quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
     elif version == 'v2nb':
         print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
-        quantize_alpha(indices, num_bits_a=opt.quant_bit_a)
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
         if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
             print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
             quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
         elif version == 'v2nb':
             print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
-            quantize_alpha(indices_pw, num_bits_a=opt.quant_bit_a)
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     # change idx to kernel
@@ -540,16 +540,16 @@ def find_similar_kernel_n_change(opt, model, version):
 
 
 def idxtoweight(opt, model, indices_all, version):
-    r"""change indices to weights
+    r"""Change indices to weights
 
     Args:
-        indices_all(list): all indices with index of the most similar kernel, $\alpha$ and $\beta$
-        version(str): version name of new method
+        indices_all (list): all indices with index of the most similar kernel, $\alpha$ and $\beta$
+        version (str): version name of new method
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
     if arch_name in hasPWConvArchs and not opt.np:
-        w_pwkernel = get_pwkernel(model, opt)
+        w_pwkernel = get_kernel(model, opt, is_pw=True)
         num_pwlayer = len(w_pwkernel)
 
     if arch_name in hasPWConvArchs and not opt.np:
@@ -590,7 +590,7 @@ def idxtoweight(opt, model, indices_all, version):
 
     set_kernel(w_kernel, model, opt)
     if arch_name in hasPWConvArchs and not opt.np:
-        set_pwkernel(w_pwkernel, model, opt)
+        set_kernel(w_pwkernel, model, opt, is_pw=True)
 
 
 if __name__ == '__main__':

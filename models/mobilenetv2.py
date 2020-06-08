@@ -392,7 +392,7 @@ def mobilenetv2(data='cifar10', **kwargs):
     r"""MobileNetV2 models from "[MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)"
 
     Args:
-        data: the name of datasets
+        data (str): the name of datasets
     """
     width_mult = kwargs.get('width_mult')
     if data in ['cifar10', 'cifar100']:
