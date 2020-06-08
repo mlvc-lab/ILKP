@@ -62,7 +62,7 @@ def main():
                 exit()
             weight_analysis(model, checkpoint)
             return
-        if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb']:
+        if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
             print('==> {}bit Quantization...'.format(opt.quant_bit))
             quantize(model, opt, opt.quant_bit)
             if arch_name in hasPWConvArchs and not opt.np:
