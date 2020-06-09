@@ -52,6 +52,7 @@ def main(args):
 
     # logging at sacred
     ex.log_scalar('architecture', arch_name)
+    ex.log_scalar('dataset', opt.dataset)
 
     print('\n=> creating model \'{}\''.format(arch_name))
     model = models.__dict__[opt.arch](data=opt.dataset, num_layers=opt.layers,
@@ -585,7 +586,6 @@ def idxtoweight(opt, model, indices_all, version):
                 num_slices += 1
             ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices, pwd)
             ref_layer_slices = ref_layer_slices.view(-1, pwd, 1, 1).numpy()
-            #TODO: pwd pws에 맞게 잘 동작하는지 확인해야됨..
             for i in tqdm(range(1, num_pwlayer), ncols=80, unit='layer'):
                 for j in range(len(w_pwkernel[i])):
                     num_slices = len(w_pwkernel[i][j])//pwd
