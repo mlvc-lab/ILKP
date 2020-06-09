@@ -10,6 +10,7 @@ do
         for qb in 6
         do
             for eps in 1e-05 1e-06 1e-07 1e-08 1e-09
+            do
                 if [ "$model" = "resnet" ]; then
                     # for layer in 20 32 44 56 110
                     for layer in 20 32 44
