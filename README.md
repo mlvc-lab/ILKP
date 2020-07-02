@@ -33,12 +33,16 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2nb (no $\beta$ with v2qq)
     - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
   - v2.5 (old: v3) (binding dwkernels) (현재는 사용 불가)
-- v3: rotation, flip, shift (구현중)
+- v3: rotation, flip, shift (구현중지)
 
 ----------
 
 ## TODO
 
+- V2 Full precision(32bit)에서 나온 결과들 확인
+- quantization 안하고 fine-tuning도 해보기
+- fine-tuning없이 처음부터 학습하는거 결과 다시 보고
+- 처음부터 학습할 때 loss term 추가 혹은 과도한 outlier weight를 제거 및 regularization을 위한 weight clipping
 - Update other models
   - VGG pretrained model upload on google drive
   - WideResNet coding

@@ -12,7 +12,7 @@ import models
 
 
 hasDiffLayersArchs = [
-    'resnet', 'resnext', 'wideresnet', 'vgg',
+    'resnet', 'wideresnet', 'vgg',
 ]
 hasPWConvArchs = [
     'mobilenet', 'mobilenetv2', 'resnet50', 'resnet101', 'resnet152',
@@ -314,7 +314,7 @@ def adjust_learning_rate(optimizer, epoch, opt):
 
 
 def accuracy(output, target, topk=(1,)):
-    r"""Computes the accuracy over the k top predictions for the specified values of k
+    r"""Computes the accuracy over the $k$ top predictions for the specified values of k
     """
     with torch.no_grad():
         maxk = max(topk)
