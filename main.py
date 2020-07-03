@@ -118,8 +118,8 @@ def main(args):
             if opt.new:
                 # logging at sacred
                 ex.log_scalar('version', checkpoint['version'])
-                if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    ex.log_scalar('epsilon', opt.epsilon)
+                # if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                #     ex.log_scalar('epsilon', opt.epsilon)
                 print('===> Change indices to weights..')
                 idxtoweight(opt, model, checkpoint['idx'], checkpoint['version'])
 
@@ -164,8 +164,8 @@ def main(args):
 
                 # logging at sacred
                 ex.log_scalar('version', checkpoint['version'])
-                if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    ex.log_scalar('epsilon', opt.epsilon)
+                # if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+                #     ex.log_scalar('epsilon', opt.epsilon)
 
                 print('===> Change indices to weights..')
                 idxtoweight(opt, model, checkpoint['idx'], opt.version)
@@ -184,96 +184,38 @@ def main(args):
     extra_time = 0.0
     for epoch in range(start_epoch, opt.epochs):
         adjust_learning_rate(optimizer, epoch, opt)
-        if opt.retrain:
-            if opt.new:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    print('\n==> {}/{} {}-th {}bit retraining'.format(
-                        arch_name, opt.dataset, n_retrain, opt.quant_bit))
-                else:
-                    print('\n==> {}/{} {}-th retraining'.format(
-                        arch_name, opt.dataset, n_retrain))
-                print('==> Version: {} / SaveEpoch: {}'.format(
-                    opt.version, opt.save_epoch))
-            else:
-                if opt.quant:
-                    print('\n==> {}/{} {}-th {}bit retraining'.format(
-                        arch_name, opt.dataset, n_retrain, opt.quant_bit))
-            print('==> Epoch: {}, lr = {}'.format(
-                epoch, optimizer.param_groups[0]["lr"]))
-
-            # train for one epoch
-            print('===> [ Retraining ]')
-            start_time = time.time()
-            acc1_train, acc5_train = train(opt, train_loader,
-                epoch=epoch, model=model,
-                criterion=criterion, optimizer=optimizer)
-            elapsed_time = time.time() - start_time
-            train_time += elapsed_time
-            print('====> {:.2f} seconds to train this epoch\n'.format(
-                elapsed_time))
-            start_time = time.time()
-            if opt.new:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    print('==> {}bit Quantization...'.format(opt.quant_bit))
-                    quantize(model, opt, opt.quant_bit)
-                    if arch_name in hasPWConvArchs:
-                        quantize(model, opt, opt.quant_bit, is_pw=True)
-                # every 'opt.save_epoch' epochs
-                if (epoch+1) % opt.save_epoch == 0:
-                    print('===> Change kernels using {}'.format(opt.version))
-                    indices = find_similar_kernel_n_change(opt, model, opt.version)
-            else:
-                if opt.quant:
-                    print('==> {}bit Quantization...'.format(opt.quant_bit))
-                    quantize(model, opt, opt.quant_bit)
-                    if arch_name in hasPWConvArchs:
-                        print('==> {}bit pwconv Quantization...'.format(opt.quant_bit))
-                        quantize(model, opt, opt.quant_bit, is_pw=True)
-            elapsed_time = time.time() - start_time
-            extra_time += elapsed_time
-            print('====> {:.2f} seconds for extra time this epoch\n'.format(
-                elapsed_time))
         else:
-            if not opt.new:
-                print('\n==> {}/{} training'.format(
-                    arch_name, opt.dataset))
-            else:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    print('\n==> {}/{}-new_{} {}bit training'.format(
-                        arch_name, opt.dataset, opt.version, opt.quant_bit))
-                else:
-                    print('\n==> {}/{}-new_{} training'.format(
-                        arch_name, opt.dataset, opt.version))
-                print('==> Version: {} / SaveEpoch: {}'.format(
-                    opt.version, opt.save_epoch))
-            print('==> Epoch: {}, lr = {}'.format(
-                epoch, optimizer.param_groups[0]["lr"]))
+        if not opt.new:
+            print('\n==> {}/{} training'.format(
+                arch_name, opt.dataset))
+        else:
+            print('\n==> {}/{}-new_{} training'.format(
+                arch_name, opt.dataset, opt.version))
+            print('==> Version: {} / SaveEpoch: {}'.format(
+                opt.version, opt.save_epoch))
+        print('==> Epoch: {}, lr = {}'.format(
+            epoch, optimizer.param_groups[0]["lr"]))
 
-            # train for one epoch
-            print('===> [ Training ]')
-            start_time = time.time()
-            acc1_train, acc5_train = train(opt, train_loader,
-                epoch=epoch, model=model,
-                criterion=criterion, optimizer=optimizer)
-            elapsed_time = time.time() - start_time
-            train_time += elapsed_time
-            print('====> {:.2f} seconds to train this epoch\n'.format(
-                elapsed_time))
-            start_time = time.time()
-            if opt.new:
-                if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    print('===> Quantization...')
-                    quantize(model, opt, opt.quant_bit)
-                    if arch_name in hasPWConvArchs:
-                        quantize(model, opt, opt.quant_bit, is_pw=True)
-                # every 5 epochs
-                if (epoch+1) % opt.save_epoch == 0:
-                    print('===> Change kernels using {}'.format(opt.version))
-                    indices = find_similar_kernel_n_change(opt, model, opt.version)
-            elapsed_time = time.time() - start_time
-            extra_time += elapsed_time
-            print('====> {:.2f} seconds for extra time this epoch\n'.format(
-                elapsed_time))
+        # train for one epoch
+        print('===> [ Training ]')
+        start_time = time.time()
+        acc1_train, acc5_train = train(opt, train_loader,
+            epoch=epoch, model=model,
+            criterion=criterion, optimizer=optimizer)
+        elapsed_time = time.time() - start_time
+        train_time += elapsed_time
+        print('====> {:.2f} seconds to train this epoch\n'.format(
+            elapsed_time))
+        start_time = time.time()
+        if opt.new:
+            # every 5 epochs
+            if (epoch+1) % opt.save_epoch == 0:
+                print('===> Change kernels using {}'.format(opt.version))
+                indices = find_similar_kernel_n_change(opt, model, opt.version)
+        elapsed_time = time.time() - start_time
+        extra_time += elapsed_time
+        print('====> {:.2f} seconds for extra time this epoch\n'.format(
+            elapsed_time))
 
         # evaluate on validation set
         print('===> [ Validation ]')
@@ -518,19 +460,19 @@ def find_similar_kernel_n_change(opt, model, version):
     if arch_name in hasPWConvArchs and not opt.np:
         indices_pw = find_kernel_pw(model, opt)
 
-    if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-        print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-    elif version == 'v2nb':
-        print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
+    # if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+    #     print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
+    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+    # elif version == 'v2nb':
+    #     print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
+    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
-        if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-            print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-        elif version == 'v2nb':
-            print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
+        # if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+        #     print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
+        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+        # elif version == 'v2nb':
+        #     print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
+        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     # change idx to kernel

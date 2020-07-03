@@ -22,8 +22,9 @@ r'''version list
 - v3: rotation, flip, shift
 '''
 versions = [
-    'v2', 'v2q', 'v2qq', 'v2f', 'v2nb', #'v2.5',
-    'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3',
+    'v2',
+    # 'v2q', 'v2qq', 'v2f', 'v2nb', #'v2.5',
+    # 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3',
     # 'v3',
 ]
 
@@ -55,7 +56,7 @@ def config():
                              'batch size of all GPUs on the current node when '
                              'using Data Parallel')
     parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                        metavar='LR', help='initial learning rate (defualt: 0.1)',
+                        metavar='LR', help='initial learning rate (default: 0.1)',
                         dest='lr')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                         help='momentum (default: 0.9)')
@@ -112,15 +113,15 @@ def config():
                         help='epsilon for denominator of alpha in find_kernel (default: 1e-5)')
     parser.add_argument('-s', '--save-epoch', default=5, type=int, metavar='N',
                         dest='save_epoch',
-                        help='number of epochs to save checkpoint and to apply new method')
+                        help='number of epochs to save checkpoint and to apply new method (default: 5)')
     parser.add_argument('--nl', '--nuc-loss', dest='nuc_loss', action='store_true',
                         help='nuclear norm loss?')
     parser.add_argument('--nls', '--nl-scale', dest='nls', default=1.0, type=float,
-                        help='scale factor of nuc_loss')
+                        help='scale factor of nuc_loss (default: 1.0)')
     parser.add_argument('--pl', '--pcc-loss', dest='pcc_loss', action='store_true',
                         help='pearson correlation coefficient loss?')
     parser.add_argument('--pls', '--pl-scale', dest='pls', default=1.0, type=float,
-                        help='scale factor of pcc_loss')
+                        help='scale factor of pcc_loss (default: 1.0)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
                         help='weight analysis in find_similar_kernel.py')
     # for quantization
@@ -129,11 +130,11 @@ def config():
     parser.add_argument('--np', action='store_true',
                         help='no v2-like method in pointwise convolutional layer?')
     parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
-                        help='number of bits for quantization (Default: 8)')
+                        help='number of bits for quantization (default: 8)')
     parser.add_argument('--qba', '--quant_bit_a', default=8, type=int, metavar='N', dest='quant_bit_a',
-                        help='number of bits for quantizing alphas (Default: 8)')
+                        help='number of bits for quantizing alphas (default: 8)')
     parser.add_argument('--qbb', '--quant_bit_b', default=8, type=int, metavar='N', dest='quant_bit_b',
-                        help='number of bits for quantizing betas (Default: 8)')
+                        help='number of bits for quantizing betas (default: 8)')
 
     cfg = parser.parse_args()
     cfg.gpuids = list(map(int, cfg.gpuids))

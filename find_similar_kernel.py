@@ -62,11 +62,11 @@ def main():
                 exit()
             weight_analysis(model, checkpoint)
             return
-        if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-            print('==> {}bit Quantization...'.format(opt.quant_bit))
-            quantize(model, opt, opt.quant_bit)
-            if arch_name in hasPWConvArchs and not opt.np:
-                quantize(model, opt, opt.quant_bit, is_pw=True)
+        # if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+        #     print('==> {}bit Quantization...'.format(opt.quant_bit))
+        #     quantize(model, opt, opt.quant_bit)
+        #     if arch_name in hasPWConvArchs and not opt.np:
+        #         quantize(model, opt, opt.quant_bit, is_pw=True)
         print('==> Find the most similar kernel in reference layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         indices = find_kernel(model, opt)
@@ -105,11 +105,11 @@ def find_kernel(model, opt):
     ref_norm = ref_layer - ref_mean
     denom = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
-    if opt.version == 'v2qq-epsv1': # add epsilon to every denom
-        denom += epsilon
-    elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
-        denom[denom.eq(0.0)] = epsilon
+    # epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
+    # if opt.version == 'v2qq-epsv1': # add epsilon to every denom
+    #     denom += epsilon
+    # elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
+    #     denom[denom.eq(0.0)] = epsilon
     denom = denom.view(-1, ref_length)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
@@ -129,8 +129,8 @@ def find_kernel(model, opt):
             alphas = deepcopy(numer / denom)
             del numer
 
-            if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
-                alphas[alphas.ne(alphas)] = 1.0
+            # if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
+            #     alphas[alphas.ne(alphas)] = 1.0
 
             betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
             residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
@@ -183,11 +183,11 @@ def find_kernel_pw(model, opt):
     ref_norm = ref_layer_slices - ref_mean
     _denom = (ref_norm * ref_norm).sum(dim=1)
 
-    epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
-    if opt.version == 'v2qq-epsv1': # add epsilon to every denom
-        _denom += epsilon
-    elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
-        _denom[_denom.eq(0.0)] = epsilon
+    # epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
+    # if opt.version == 'v2qq-epsv1': # add epsilon to every denom
+    #     _denom += epsilon
+    # elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
+    #     _denom[_denom.eq(0.0)] = epsilon
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -206,8 +206,8 @@ def find_kernel_pw(model, opt):
             alphas = deepcopy(numer / denom)
             del numer, denom
 
-            if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
-                alphas[alphas.ne(alphas)] = 1.0
+            # if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
+            #     alphas[alphas.ne(alphas)] = 1.0
 
             betas = cur_mean - alphas * ref_mean.view(-1, ref_length).expand_as(alphas)
             for idx_cur_slice in range(cur_length):
@@ -245,17 +245,17 @@ def save_model(ckpt, indices_all):
     else:
         indices = indices_all
 
-    if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a,
-                    num_bits_b=opt.quant_bit_b)
-    elif opt.version == 'v2nb':
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
+    # if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a,
+    #                 num_bits_b=opt.quant_bit_b)
+    # elif opt.version == 'v2nb':
+    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a)
     if arch_name in hasPWConvArchs and not opt.np:
-        if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a,
-                        num_bits_b=opt.quant_bit_b)
-        elif opt.version == 'v2nb':
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
+        # if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a,
+        #                 num_bits_b=opt.quant_bit_b)
+        # elif opt.version == 'v2nb':
+        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     ckpt['idx'] = indices
@@ -265,17 +265,17 @@ def save_model(ckpt, indices_all):
         new_model_filename += '_np'
     elif arch_name in hasPWConvArchs:
         new_model_filename += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-    if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-        new_model_filename += '_q{}'.format(opt.quant_bit)
-        if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-            new_model_filename += '{}{}'.format(
-                opt.quant_bit_a, opt.quant_bit_b)
-            if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                new_model_filename += '_eps{}'.format(
-                    opt.epsilon)
-        elif opt.version == 'v2nb':
-            new_model_filename += '{}'.format(
-                opt.quant_bit_a)
+    # if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+    #     new_model_filename += '_q{}'.format(opt.quant_bit)
+    #     if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+    #         new_model_filename += '{}{}'.format(
+    #             opt.quant_bit_a, opt.quant_bit_b)
+    #         if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
+    #             new_model_filename += '_eps{}'.format(
+    #                 opt.epsilon)
+    #     elif opt.version == 'v2nb':
+    #         new_model_filename += '{}'.format(
+    #             opt.quant_bit_a)
     # elif opt.version in ['v3', 'v3a']:
     #     new_model_filename += '_d{}'.format(opt.bind_size)
     new_model_filename += '.pth'

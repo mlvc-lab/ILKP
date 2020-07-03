@@ -59,68 +59,15 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
     dir_path.mkdir(parents=True, exist_ok=True)
 
     file_name = 'ckpt'
-    if opt.retrain:
-        file_name += '_rt{}'.format(n_retrain)
-        if opt.new:
-            file_name += '_{}'.format(opt.version)
-            if opt.np:
-                file_name += '_np'
-            elif arch_name in hasPWConvArchs:
-                file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                if opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-                file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    if opt.version == 'v2nb':
-                        file_name += '{}'.format(
-                            opt.quant_bit_a)
-                    else:
-                        file_name += '{}{}'.format(
-                            opt.quant_bit_a, opt.quant_bit_b)
-                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                        file_name += '_eps{}'.format(
-                            opt.epsilon)
-            else:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-            file_name += '_s{}'.format(opt.save_epoch)
-        else:
-            if opt.quant:
-                file_name += '_q{}'.format(opt.quant_bit)
-    else:
-        if opt.new:
-            file_name += '_new_{}'.format(opt.version)
-            if opt.np:
-                file_name += '_np'
-            elif arch_name in hasPWConvArchs:
-                file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                if opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-                file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    if opt.version == 'v2nb':
-                        file_name += '{}'.format(
-                            opt.quant_bit_a)
-                    else:
-                        file_name += '{}{}'.format(
-                            opt.quant_bit_a, opt.quant_bit_b)
-                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                        file_name += '_eps{}'.format(
-                            opt.epsilon)
-            else:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-            file_name += '_s{}'.format(opt.save_epoch)
+    if opt.new:
+        file_name += '_new_{}'.format(opt.version)
+        if arch_name in hasPWConvArchs:
+            file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
+        if opt.nuc_loss:
+            file_name += '_nl{}'.format(opt.nls)
+        if opt.pcc_loss:
+            file_name += '_pl{}'.format(opt.pls)
+        file_name += '_s{}'.format(opt.save_epoch)
 
     file_name_best = deepcopy(file_name) + '_best.pth' # baseline: ckpt_best.pth
     file_name += '_epoch_{}.pth'.format(epoch) # baseline: ckpt_epoch_{}.pth
@@ -140,70 +87,15 @@ def save_summary(arch_name, summary, opt, n_retrain):
     dir_path.mkdir(parents=True, exist_ok=True)
 
     file_name = '{}_{}'.format(arch_name, opt.dataset)
-    if opt.retrain:
-        file_name += '_rt{}'.format(n_retrain)
-        if opt.new:
-            file_name += '_{}'.format(opt.version)
-            if opt.np:
-                file_name += '_np'
-            elif arch_name in hasPWConvArchs:
-                file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                if opt.np:
-                    file_name += '_np'
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                if opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-                file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    if opt.version == 'v2nb':
-                        file_name += '{}'.format(
-                            opt.quant_bit_a)
-                    else:
-                        file_name += '{}{}'.format(
-                            opt.quant_bit_a, opt.quant_bit_b)
-                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                        file_name += '_eps{}'.format(
-                            opt.epsilon)
-            else:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-            file_name += '_s{}'.format(opt.save_epoch)
-        else:
-            if opt.quant:
-                file_name += '_q{}'.format(opt.quant_bit)
-    else:
-        if opt.new:
-            file_name += '_new_{}'.format(opt.version)
-            if opt.np:
-                file_name += '_np'
-            elif arch_name in hasPWConvArchs:
-                file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-            if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-                file_name += '_q{}'.format(opt.quant_bit)
-                if opt.version in ['v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                    if opt.version == 'v2nb':
-                        file_name += '{}'.format(
-                            opt.quant_bit_a)
-                    else:
-                        file_name += '{}{}'.format(
-                            opt.quant_bit_a, opt.quant_bit_b)
-                    if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                        file_name += '_eps{}'.format(
-                            opt.epsilon)
-            else:
-                if opt.nuc_loss:
-                    file_name += '_nl{}'.format(opt.nls)
-                elif opt.pcc_loss:
-                    file_name += '_pl{}'.format(opt.pls)
-            file_name += '_s{}'.format(opt.save_epoch)
+    if opt.new:
+        file_name += '_new_{}'.format(opt.version)
+        if arch_name in hasPWConvArchs:
+            file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
+        if opt.nuc_loss:
+            file_name += '_nl{}'.format(opt.nls)
+        if opt.pcc_loss:
+            file_name += '_pl{}'.format(opt.pls)
+        file_name += '_s{}'.format(opt.save_epoch)
     file_name += '.csv'
     file_summ = dir_path / file_name
 
