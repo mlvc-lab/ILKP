@@ -101,9 +101,14 @@ def main(args):
 
     # Data loading
     print('==> Load data..')
+    start_time = time.time()
     train_loader, val_loader = DataLoader(opt.batch_size, opt.workers,
                                           opt.dataset, opt.datapath,
                                           opt.cuda)
+    elapsed_time = time.time() - start_time
+    print('===> Data loading time: {:,}m {:.2f}s'.format(
+        int(elapsed_time//60), elapsed_time%60))
+    print('===> Data loaded..')
 
     # for evaluation
     if opt.evaluate:
