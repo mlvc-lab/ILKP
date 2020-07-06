@@ -212,7 +212,7 @@ def main(args):
             elapsed_time))
         start_time = time.time()
         if opt.new:
-            # every 5 epochs
+            # every 'opt.save_epoch' epochs
             if (epoch+1) % opt.save_epoch == 0:
                 print('===> Change kernels using {}'.format(opt.version))
                 indices = find_similar_kernel_n_change(opt, model, opt.version)

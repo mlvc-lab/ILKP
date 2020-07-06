@@ -51,8 +51,8 @@ def config():
                         help='number of data loading workers (default: 8)')
     parser.add_argument('--epochs', default=200, type=int, metavar='N',
                         help='number of total epochs to run (default: 200)')
-    parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='N',
-                        help='mini-batch size (default: 128), this is the total '
+    parser.add_argument('-b', '--batch-size', default=256, type=int, metavar='N',
+                        help='mini-batch size (default: 256), this is the total '
                              'batch size of all GPUs on the current node when '
                              'using Data Parallel')
     parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
