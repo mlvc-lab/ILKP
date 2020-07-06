@@ -184,7 +184,6 @@ def main(args):
     extra_time = 0.0
     for epoch in range(start_epoch, opt.epochs):
         adjust_learning_rate(optimizer, epoch, opt)
-        else:
         if not opt.new:
             print('\n==> {}/{} training'.format(
                 arch_name, opt.dataset))
