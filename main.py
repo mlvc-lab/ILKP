@@ -197,7 +197,7 @@ def main(args):
                 arch_name, opt.dataset, opt.version))
             print('==> Version: {} / SaveEpoch: {}'.format(
                 opt.version, opt.save_epoch))
-            if epoch < opt.warmup_epoch and version.find('v2') != -1:
+            if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 print('==> V2 Warmup epochs up to {} epochs'.format(
                     opt.warmup_epoch))
         print('==> Epoch: {}, lr = {}'.format(
@@ -215,7 +215,7 @@ def main(args):
             elapsed_time))
         start_time = time.time()
         if opt.new:
-            if epoch < opt.warmup_epoch and version.find('v2') != -1:
+            if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 pass
             elif (epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 print('===> Change kernels using {}'.format(opt.version))
@@ -255,7 +255,7 @@ def main(args):
             save_model(arch_name, state, epoch, is_best, opt, n_retrain)
             save_summary(arch_name, summary, opt, n_retrain)
         else:
-            if epoch < opt.warmup_epoch and version.find('v2') != -1:
+            if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 pass
             elif (epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 state['new'] = True
