@@ -217,7 +217,7 @@ def main(args):
         if opt.new:
             if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 pass
-            elif (epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
+            elif (epoch-opt.warmup_epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 print('===> Change kernels using {}'.format(opt.version))
                 indices = find_similar_kernel_n_change(opt, model, opt.version)
         elapsed_time = time.time() - start_time
@@ -257,7 +257,7 @@ def main(args):
         else:
             if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 pass
-            elif (epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
+            elif (epoch-opt.warmup_epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 state['new'] = True
                 state['version'] = opt.version
                 state['idx'] = indices

@@ -105,7 +105,7 @@ def save_summary(arch_name, summary, opt, n_retrain):
 
     first_save_epoch = 0
     if opt.new:
-        first_save_epoch = opt.save_epoch - 1
+        first_save_epoch = opt.warmup_epoch + opt.save_epoch - 1
 
     if summary[0] == first_save_epoch:
         with open(file_summ, 'w', newline='') as csv_out:
