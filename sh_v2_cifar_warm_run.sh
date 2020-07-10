@@ -5,6 +5,7 @@ do
     for model in mobilenet mobilenetv2 resnet
     do
         for warm in 5 10 15 20
+        do
             if [ "$model" = "resnet" ]; then
                 for layer in 20 32 44 56 110
                 do
