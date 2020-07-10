@@ -123,7 +123,7 @@ def config():
                         help='scale factor of pcc_loss (default: 1.0)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
                         help='weight analysis in find_similar_kernel.py')
-    parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metava='N',
+    parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metavar='N',
                         help='number of warmup epochs for applying the V2 method (default: 0)')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
