@@ -197,6 +197,9 @@ def main(args):
                 arch_name, opt.dataset, opt.version))
             print('==> Version: {} / SaveEpoch: {}'.format(
                 opt.version, opt.save_epoch))
+            if epoch < opt.warmup_epoch and version.find('v2') != -1:
+                print('==> V2 Warmup epochs up to {} epochs'.format(
+                    opt.warmup_epoch))
         print('==> Epoch: {}, lr = {}'.format(
             epoch, optimizer.param_groups[0]["lr"]))
 
@@ -212,8 +215,9 @@ def main(args):
             elapsed_time))
         start_time = time.time()
         if opt.new:
-            # every 'opt.save_epoch' epochs
-            if (epoch+1) % opt.save_epoch == 0:
+            if epoch < opt.warmup_epoch and version.find('v2') != -1:
+                pass
+            elif (epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 print('===> Change kernels using {}'.format(opt.version))
                 indices = find_similar_kernel_n_change(opt, model, opt.version)
         elapsed_time = time.time() - start_time
@@ -251,8 +255,9 @@ def main(args):
             save_model(arch_name, state, epoch, is_best, opt, n_retrain)
             save_summary(arch_name, summary, opt, n_retrain)
         else:
-            # every 'opt.save_epoch' epochs
-            if (epoch+1) % opt.save_epoch == 0:
+            if epoch < opt.warmup_epoch and version.find('v2') != -1:
+                pass
+            elif (epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 state['new'] = True
                 state['version'] = opt.version
                 state['idx'] = indices

@@ -111,8 +111,7 @@ def config():
                         help='new method?')
     parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-8, type=float, metavar='EPS',
                         help='epsilon for denominator of alpha in find_kernel (default: 1e-5)')
-    parser.add_argument('-s', '--save-epoch', default=5, type=int, metavar='N',
-                        dest='save_epoch',
+    parser.add_argument('-s', '--save-epoch', dest='save_epoch', default=5, type=int, metavar='N',
                         help='number of epochs to save checkpoint and to apply new method (default: 5)')
     parser.add_argument('--nl', '--nuc-loss', dest='nuc_loss', action='store_true',
                         help='nuclear norm loss?')
@@ -124,6 +123,8 @@ def config():
                         help='scale factor of pcc_loss (default: 1.0)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
                         help='weight analysis in find_similar_kernel.py')
+    parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metava='N',
+                        help='number of warmup epochs for applying the V2 method (default: 0)')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')

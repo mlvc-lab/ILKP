@@ -68,6 +68,8 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
         if opt.pcc_loss:
             file_name += '_pl{}'.format(opt.pls)
         file_name += '_s{}'.format(opt.save_epoch)
+        if opt.warmup_epoch > 0:
+            file_name += '_warm{}'.format(opt.warmup_epoch)
 
     file_name_best = deepcopy(file_name) + '_best.pth' # baseline: ckpt_best.pth
     file_name += '_epoch_{}.pth'.format(epoch) # baseline: ckpt_epoch_{}.pth
@@ -96,6 +98,8 @@ def save_summary(arch_name, summary, opt, n_retrain):
         if opt.pcc_loss:
             file_name += '_pl{}'.format(opt.pls)
         file_name += '_s{}'.format(opt.save_epoch)
+        if opt.warmup_epoch > 0:
+            file_name += '_warm{}'.format(opt.warmup_epoch)
     file_name += '.csv'
     file_summ = dir_path / file_name
 
