@@ -51,7 +51,7 @@ def load_model(model, ckpt_file, main_gpu, use_cuda=True):
     return checkpoint
 
 
-def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
+def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
     r"""Save the model (checkpoint) at the training time in each epoch
     """
     dir_ckpt = pathlib.Path('checkpoint')
@@ -60,7 +60,10 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
 
     file_name = 'ckpt'
     if opt.new:
-        file_name += '_new_{}'.format(opt.version)
+        if opt.retrain:
+            file_name += '_rt{}_{}'.format(n_retrain, opt.version)
+        else:
+            file_name += '_new_{}'.format(opt.version)
         if arch_name in hasPWConvArchs:
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
         if opt.nuc_loss:
@@ -80,7 +83,7 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain):
         shutil.copyfile(model_file, dir_path / file_name_best)
 
 
-def save_summary(arch_name, summary, opt, n_retrain):
+def save_summary(arch_name, summary, opt, n_retrain: int=0):
     r"""Save summary i.e. top-1/5 validation accuracy in each epoch
     under `summary` directory
     """
@@ -90,7 +93,10 @@ def save_summary(arch_name, summary, opt, n_retrain):
 
     file_name = '{}_{}'.format(arch_name, opt.dataset)
     if opt.new:
-        file_name += '_new_{}'.format(opt.version)
+        if opt.retrain:
+            file_name += '_rt{}_{}'.format(n_retrain, opt.version)
+        else:
+            file_name += '_new_{}'.format(opt.version)
         if arch_name in hasPWConvArchs:
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
         if opt.nuc_loss:
@@ -105,6 +111,7 @@ def save_summary(arch_name, summary, opt, n_retrain):
 
     first_save_epoch = 0
     if opt.new:
+        # opt.warmup_epoch is 0 in default configuration
         first_save_epoch = opt.warmup_epoch + opt.save_epoch - 1
 
     if summary[0] == first_save_epoch:
@@ -243,7 +250,7 @@ def set_arch_name(opt):
     return arch_name
 
 
-def get_kernel(model, opt, is_pw:bool=False):
+def get_kernel(model, opt, is_pw: bool=False):
     r"""Get all convolutional kernel weights in model
 
     Args:
@@ -277,7 +284,7 @@ def get_kernel(model, opt, is_pw:bool=False):
     return w_kernel
 
 
-def set_kernel(w_kernel, model, opt, is_pw:bool=False):
+def set_kernel(w_kernel, model, opt, is_pw: bool=False):
     r"""Set all convolutional kernel weights in model
 
     Args:
