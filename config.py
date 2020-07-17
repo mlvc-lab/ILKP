@@ -121,15 +121,19 @@ def config():
                         help='pearson correlation coefficient loss?')
     parser.add_argument('--pls', '--pl-scale', dest='pls', default=1.0, type=float,
                         help='scale factor of pcc_loss (default: 1.0)')
+    parser.add_argument('--tvl', '--tv-loss', dest='tv_loss', action='store_true',
+                        help='total variation loss?')
+    parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1.0, type=float,
+                        help='scale factor of tv_loss (default: 1.0)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
                         help='weight analysis in find_similar_kernel.py')
     parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metavar='N',
                         help='number of warmup epochs for applying the V2 method (default: 0)')
+    parser.add_argument('--np', action='store_true',
+                        help='no v2-like method in pointwise convolutional layer?')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')
-    parser.add_argument('--np', action='store_true',
-                        help='no v2-like method in pointwise convolutional layer?')
     parser.add_argument('--qb', '--quant-bit', default=8, type=int, metavar='N', dest='quant_bit',
                         help='number of bits for quantization (default: 8)')
     parser.add_argument('--qba', '--quant_bit_a', default=8, type=int, metavar='N', dest='quant_bit_a',

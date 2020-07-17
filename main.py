@@ -61,6 +61,9 @@ def main(args):
     if model is None:
         print('==> unavailable model parameters!! exit...\n')
         exit()
+    
+    new_regularizer(opt, model, 'tv')
+    exit()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=opt.lr,
@@ -327,6 +330,10 @@ def train(opt, train_loader, **kwargs):
         if opt.pcc_loss:
             regularizer = new_regularizer(opt, model, 'pcc')
             loss += regularizer
+        # option 3) add total variation loss
+        if opt.tv_loss:
+            regularizer = new_regularizer(opt, model, 'tv')
+            loss += regularizer
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -412,48 +419,97 @@ def new_regularizer(opt, model, regularizer_name='nuc'):
     Args:
         regularizer_name (str): name of regularizer
     """
-    d = opt.bind_size
-    if opt.arch in hasDiffLayersArchs:
-        try:
-            first_conv = model.module.get_layer_conv(0).weight
-        except:
-            first_conv = model.get_layer_conv(0).weight
-    else:
-        try:
-            first_conv = model.module.get_layer_dwconv(0).weight
-        except:
-            first_conv = model.get_layer_dwconv(0).weight
-    first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
+    # d = opt.bind_size
+    # if opt.arch in hasDiffLayersArchs:
+    #     try:
+    #         first_conv = model.module.get_layer_conv(0).weight
+    #     except:
+    #         first_conv = model.get_layer_conv(0).weight
+    # else:
+    #     try:
+    #         first_conv = model.module.get_layer_dwconv(0).weight
+    #     except:
+    #         first_conv = model.get_layer_dwconv(0).weight
+    # first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
 
     if regularizer_name == 'nuc':
-        for idx in range(0, first_conv.size()[0], d):
-            sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
-            if idx == 0:
-                first_conv_all = sub_tensor
-            else:
-                first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
-        regularizer = opt.nls / torch.norm(first_conv_all, p='nuc')
+        # for idx in range(0, first_conv.size()[0], d):
+        #     sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
+        #     if idx == 0:
+        #         first_conv_all = sub_tensor
+        #     else:
+        #         first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
+        # regularizer = opt.nls / torch.norm(first_conv_all, p='nuc')
+        regularizer = 0.0
     elif regularizer_name == 'pcc':
-        sub_tensors = []
-        for idx in range(0, first_conv.size()[0], d):
-            sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
-        sum_abspcc = 0.0
-        for idx_x in range(len(sub_tensors)):
-            for idx_y in range(idx_x+1,len(sub_tensors)):
-                cov_xy = 0.0
-                stddev_x = 0.0
-                stddev_y = 0.0
-                mean_x = torch.mean(sub_tensors[idx_x])
-                mean_y = torch.mean(sub_tensors[idx_y])
-                for idx_i in range(len(sub_tensors[idx_x])):
-                    cov_xy += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_y][idx_i] - mean_y)
-                    stddev_x += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_x][idx_i] - mean_x)
-                    stddev_y += (sub_tensors[idx_y][idx_i] - mean_y)*(sub_tensors[idx_y][idx_i] - mean_y)
-                stddev_x = torch.sqrt(stddev_x)
-                stddev_y = torch.sqrt(stddev_y)
-                pcc_xy = cov_xy / (stddev_x*stddev_y)
-                sum_abspcc += torch.abs(pcc_xy)
-        regularizer = opt.pls * sum_abspcc
+        # sub_tensors = []
+        # for idx in range(0, first_conv.size()[0], d):
+        #     sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
+        # sum_abspcc = 0.0
+        # for idx_x in range(len(sub_tensors)):
+        #     for idx_y in range(idx_x+1,len(sub_tensors)):
+        #         cov_xy = 0.0
+        #         stddev_x = 0.0
+        #         stddev_y = 0.0
+        #         mean_x = torch.mean(sub_tensors[idx_x])
+        #         mean_y = torch.mean(sub_tensors[idx_y])
+        #         for idx_i in range(len(sub_tensors[idx_x])):
+        #             cov_xy += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_y][idx_i] - mean_y)
+        #             stddev_x += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_x][idx_i] - mean_x)
+        #             stddev_y += (sub_tensors[idx_y][idx_i] - mean_y)*(sub_tensors[idx_y][idx_i] - mean_y)
+        #         stddev_x = torch.sqrt(stddev_x)
+        #         stddev_y = torch.sqrt(stddev_y)
+        #         pcc_xy = cov_xy / (stddev_x*stddev_y)
+        #         sum_abspcc += torch.abs(pcc_xy)
+        # regularizer = opt.pls * sum_abspcc
+        regularizer = 0.0
+    elif regularizer_name == 'tv':
+        if opt.arch in hasDWConvArchs:
+            try:
+                num_layer = model.module.get_num_dwconv_layer()
+            except:
+                num_layer = model.get_num_dwconv_layer()
+        else:
+            try:
+                num_layer = model.module.get_num_conv_layer()
+            except:
+                num_layer = model.get_num_conv_layer()
+        if arch_name in hasPWConvArchs and not opt.np:
+            try:
+                num_pwlayer = model.module.get_num_pwconv_layer()
+            except:
+                num_pwlayer = model.get_num_pwconv_layer()
+        if opt.arch in hasDWConvArchs:
+            try:
+                conv_all = model.module.get_layer_dwconv(0).weight
+            except:
+                conv_all = model.get_layer_dwconv(0).weight
+            for i in range(1, num_layer):
+                try:
+                    conv_cur = model.module.get_layer_dwconv(i).weight
+                except:
+                    conv_cur = model.get_layer_dwconv(i).weight
+                conv_all = torch.cat((conv_all, conv_cur), 0)
+        else:
+            try:
+                conv_all = model.module.get_layer_conv(0).weight
+            except:
+                conv_all = model.get_layer_conv(0).weight
+            for i in range(1, num_layer):
+                try:
+                    conv_cur = model.module.get_layer_conv(i).weight
+                except:
+                    conv_cur = model.get_layer_conv(i).weight
+                conv_all = torch.cat((conv_all, conv_cur), 0)
+        print(conv_all)
+        regularizer = 0.0
+        #TODO: total variation loss 구현
+        '''
+        reg_loss = REGULARIZATION * (
+            torch.sum(torch.abs(y[:, :, :, :-1] - y[:, :, :, 1:])) +
+            torch.sum(torch.abs(y[:, :, :-1, :] - y[:, :, 1:, :]))
+            )
+        '''
 
     return regularizer
 
