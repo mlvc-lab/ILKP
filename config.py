@@ -113,18 +113,18 @@ def config():
                         help='epsilon for denominator of alpha in find_kernel (default: 1e-5)')
     parser.add_argument('-s', '--save-epoch', dest='save_epoch', default=5, type=int, metavar='N',
                         help='number of epochs to save checkpoint and to apply new method (default: 5)')
-    parser.add_argument('--nl', '--nuc-loss', dest='nuc_loss', action='store_true',
-                        help='nuclear norm loss?')
-    parser.add_argument('--nls', '--nl-scale', dest='nls', default=1.0, type=float,
-                        help='scale factor of nuc_loss (default: 1.0)')
-    parser.add_argument('--pl', '--pcc-loss', dest='pcc_loss', action='store_true',
-                        help='pearson correlation coefficient loss?')
-    parser.add_argument('--pls', '--pl-scale', dest='pls', default=1.0, type=float,
-                        help='scale factor of pcc_loss (default: 1.0)')
     parser.add_argument('--tvl', '--tv-loss', dest='tv_loss', action='store_true',
                         help='total variation loss?')
-    parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1.0, type=float,
-                        help='scale factor of tv_loss (default: 1.0)')
+    parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1e-6, type=float,
+                        help='scale factor of tv_loss (default: 1e-6)')
+    # parser.add_argument('--gifl', '--gif-loss', dest='gif_loss', action='store_true',
+    #                     help='guided image filter loss?')
+    # parser.add_argument('--gifls', '--gifl-scale', dest='gifls', default=1e-6, type=float,
+    #                     help='scale factor of gif_loss (default: 1e-6)')
+    # parser.add_argument('--gifl-eps', '--gifl-epsilon', dest='gifleps', default=0.04, type=float,
+    #                     help='scale factor of gif_loss (default: 0.04)')
+    # parser.add_argument('--gifl-r', '--gifl-radius', dest='giflr', default=4, type=int,
+    #                     help='scale factor of gif_loss (default: 4)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
                         help='weight analysis in find_similar_kernel.py')
     parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metavar='N',

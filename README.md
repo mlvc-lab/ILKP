@@ -17,6 +17,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 - `requests` (for downloading pretrained checkpoint and imagenet dataset)
 - `sacred` (for logging on omniboard)
 - `pymongo` (for logging on omniboard)
+- `cv2` (`opencv-python`)(for guided image filter loss) (not yet)
 
 ----------
 
@@ -43,10 +44,8 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 - quantization 안하고 fine-tuning도 해보기
 - fine-tuning없이 처음부터 학습하는거 결과 다시 보고
 - 처음부터 학습할 때 loss term 추가 혹은 과도한 outlier weight를 제거 및 regularization을 위한 weight clipping
-- Update other models
-  - VGG pretrained model upload on google drive
-  - WideResNet coding
-- 여러가지 flag -> rotation, shift 추가해서 성능확인 (v3)
+    - total variation loss
+    - weight clipping
 - Make TinyImageNet dataloader
 
 ----------

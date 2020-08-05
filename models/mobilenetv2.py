@@ -285,7 +285,7 @@ class MobileNetV2_CIFAR(nn.Module):
             exit()
 
     # get point-wise convolutional layer
-    def get_layer_dwconv(self, layer_num=0):
+    def get_layer_pwconv(self, layer_num=0):
         if layer_num < self.get_num_pwconv_layer():
             if layer_num == 0:
                 return self.features[layer_num+1].conv[-2]

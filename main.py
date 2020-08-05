@@ -61,9 +61,6 @@ def main(args):
     if model is None:
         print('==> unavailable model parameters!! exit...\n')
         exit()
-    
-    new_regularizer(opt, model, 'tv')
-    exit()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=opt.lr,
@@ -198,8 +195,12 @@ def main(args):
         else:
             print('\n==> {}/{}-new_{} training'.format(
                 arch_name, opt.dataset, opt.version))
-            print('==> Version: {} / SaveEpoch: {}'.format(
-                opt.version, opt.save_epoch))
+            if opt.tv_loss:
+                print('==> Version: {} with TV loss / SaveEpoch: {}'.format(
+                    opt.version, opt.save_epoch))
+            else:
+                print('==> Version: {} / SaveEpoch: {}'.format(
+                    opt.version, opt.save_epoch))
             if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 print('==> V2 Warmup epochs up to {} epochs'.format(
                     opt.warmup_epoch))
@@ -322,18 +323,14 @@ def train(opt, train_loader, **kwargs):
         # compute output
         output = model(input)
         loss = criterion(output, target)
-        # option 1) add inverse nuclear norm loss
-        if opt.nuc_loss:
-            regularizer = new_regularizer(opt, model, 'nuc')
-            loss += regularizer
-        # option 2) add absolute pcc loss
-        if opt.pcc_loss:
-            regularizer = new_regularizer(opt, model, 'pcc')
-            loss += regularizer
-        # option 3) add total variation loss
+        # option 1) add total variation loss
         if opt.tv_loss:
             regularizer = new_regularizer(opt, model, 'tv')
             loss += regularizer
+        # option 2) add guided image filter loss
+        # if opt.gif_loss:
+        #     regularizer = new_regularizer(opt, model, 'gif')
+        #     loss += regularizer
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -413,103 +410,88 @@ def validate(opt, val_loader, epoch, model, criterion):
     return top1.avg, top5.avg
 
 
-def new_regularizer(opt, model, regularizer_name='nuc'):
+def new_regularizer(opt, model, regularizer_name='tv'):
     r"""Add new regularizer
 
     Args:
         regularizer_name (str): name of regularizer
+            - 'tv': total variation loss (https://towardsdatascience.com/pytorch-implementation-of-perceptual-losses-for-real-time-style-transfer-8d608e2e9902)
+            - 'gif': guieded image filter loss
     """
-    # d = opt.bind_size
-    # if opt.arch in hasDiffLayersArchs:
-    #     try:
-    #         first_conv = model.module.get_layer_conv(0).weight
-    #     except:
-    #         first_conv = model.get_layer_conv(0).weight
-    # else:
-    #     try:
-    #         first_conv = model.module.get_layer_dwconv(0).weight
-    #     except:
-    #         first_conv = model.get_layer_dwconv(0).weight
-    # first_conv = torch.flatten(first_conv, start_dim=0, end_dim=1)
+    # get all convolution weights and reshape
+    if opt.arch in hasDWConvArchs:
+        try:
+            num_layer = model.module.get_num_dwconv_layer()
+            conv_all = model.module.get_layer_dwconv(0).weight
+        except:
+            num_layer = model.get_num_dwconv_layer()
+            conv_all = model.get_layer_dwconv(0).weight
+        conv_all = conv_all.view(len(conv_all), -1)
+        for i in range(1, num_layer):
+            try:
+                conv_cur = model.module.get_layer_dwconv(i).weight
+            except:
+                conv_cur = model.get_layer_dwconv(i).weight
+            conv_cur = conv_cur.view(len(conv_cur), -1)
+            conv_all = torch.cat((conv_all, conv_cur), 0)
+    else:
+        try:
+            num_layer = model.module.get_num_conv_layer()
+            conv_all = model.module.get_layer_conv(0).weight.view(-1, 9)
+        except:
+            num_layer = model.get_num_conv_layer()
+            conv_all = model.get_layer_conv(0).weight.view(-1, 9)
+        for i in range(1, num_layer):
+            try:
+                conv_cur = model.module.get_layer_conv(i).weight.view(-1, 9)
+            except:
+                conv_cur = model.get_layer_conv(i).weight.view(-1, 9)
+            conv_all = torch.cat((conv_all, conv_cur), 0)
+    if arch_name in hasPWConvArchs and not opt.np:
+        try:
+            num_pwlayer = model.module.get_num_pwconv_layer()
+            pwconv_all = model.module.get_layer_pwconv(0).weight
+        except:
+            num_pwlayer = model.get_num_pwconv_layer()
+            pwconv_all = model.get_layer_pwconv(0).weight
+        pwconv_all = pwconv_all.view(-1, opt.pw_bind_size)
+        for i in range(1, num_pwlayer):
+            try:
+                pwconv_cur = model.module.get_layer_pwconv(i).weight
+            except:
+                pwconv_cur = model.get_layer_pwconv(i).weight
+            pwconv_cur = pwconv_cur.view(-1, opt.pw_bind_size)
+            pwconv_all = torch.cat((pwconv_all, pwconv_cur), 0)
 
-    if regularizer_name == 'nuc':
-        # for idx in range(0, first_conv.size()[0], d):
-        #     sub_tensor = torch.unsqueeze(torch.flatten(first_conv[idx:idx+d]), 0)
-        #     if idx == 0:
-        #         first_conv_all = sub_tensor
-        #     else:
-        #         first_conv_all = torch.cat((first_conv_all, sub_tensor), 0)
-        # regularizer = opt.nls / torch.norm(first_conv_all, p='nuc')
-        regularizer = 0.0
-    elif regularizer_name == 'pcc':
-        # sub_tensors = []
-        # for idx in range(0, first_conv.size()[0], d):
-        #     sub_tensors.append(torch.flatten(first_conv[idx:idx+d]))
-        # sum_abspcc = 0.0
-        # for idx_x in range(len(sub_tensors)):
-        #     for idx_y in range(idx_x+1,len(sub_tensors)):
-        #         cov_xy = 0.0
-        #         stddev_x = 0.0
-        #         stddev_y = 0.0
-        #         mean_x = torch.mean(sub_tensors[idx_x])
-        #         mean_y = torch.mean(sub_tensors[idx_y])
-        #         for idx_i in range(len(sub_tensors[idx_x])):
-        #             cov_xy += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_y][idx_i] - mean_y)
-        #             stddev_x += (sub_tensors[idx_x][idx_i] - mean_x)*(sub_tensors[idx_x][idx_i] - mean_x)
-        #             stddev_y += (sub_tensors[idx_y][idx_i] - mean_y)*(sub_tensors[idx_y][idx_i] - mean_y)
-        #         stddev_x = torch.sqrt(stddev_x)
-        #         stddev_y = torch.sqrt(stddev_y)
-        #         pcc_xy = cov_xy / (stddev_x*stddev_y)
-        #         sum_abspcc += torch.abs(pcc_xy)
-        # regularizer = opt.pls * sum_abspcc
-        regularizer = 0.0
-    elif regularizer_name == 'tv':
-        if opt.arch in hasDWConvArchs:
-            try:
-                num_layer = model.module.get_num_dwconv_layer()
-            except:
-                num_layer = model.get_num_dwconv_layer()
-        else:
-            try:
-                num_layer = model.module.get_num_conv_layer()
-            except:
-                num_layer = model.get_num_conv_layer()
+    if regularizer_name == 'tv':
+        regularizer = torch.sum(torch.abs(conv_all[:, :-1] - conv_all[:, 1:])) + torch.sum(torch.abs(conv_all[:-1, :] - conv_all[1:, :]))
         if arch_name in hasPWConvArchs and not opt.np:
-            try:
-                num_pwlayer = model.module.get_num_pwconv_layer()
-            except:
-                num_pwlayer = model.get_num_pwconv_layer()
-        if opt.arch in hasDWConvArchs:
-            try:
-                conv_all = model.module.get_layer_dwconv(0).weight
-            except:
-                conv_all = model.get_layer_dwconv(0).weight
-            for i in range(1, num_layer):
-                try:
-                    conv_cur = model.module.get_layer_dwconv(i).weight
-                except:
-                    conv_cur = model.get_layer_dwconv(i).weight
-                conv_all = torch.cat((conv_all, conv_cur), 0)
-        else:
-            try:
-                conv_all = model.module.get_layer_conv(0).weight
-            except:
-                conv_all = model.get_layer_conv(0).weight
-            for i in range(1, num_layer):
-                try:
-                    conv_cur = model.module.get_layer_conv(i).weight
-                except:
-                    conv_cur = model.get_layer_conv(i).weight
-                conv_all = torch.cat((conv_all, conv_cur), 0)
-        print(conv_all)
+            regularizer += torch.sum(torch.abs(pwconv_all[:, :-1] - pwconv_all[:, 1:])) + torch.sum(torch.abs(pwconv_all[:-1, :] - pwconv_all[1:, :]))
+        regularizer = opt.tvls * regularizer
+    elif regularizer_name == 'gif':
+        #TODO: guided image filter loss 구현
         regularizer = 0.0
-        #TODO: total variation loss 구현
-        '''
-        reg_loss = REGULARIZATION * (
-            torch.sum(torch.abs(y[:, :, :, :-1] - y[:, :, :, 1:])) +
-            torch.sum(torch.abs(y[:, :, :-1, :] - y[:, :, 1:, :]))
-            )
-        '''
+        # import cv2
+        # eps = opt.gifleps
+        
+        # I = np.double(conv_all)
+        # I2 = cv2.pow(I,2);
+        # mean_I = cv2.boxFilter(I,-1,((2*r)+1,(2*r)+1))
+        # mean_I2 = cv2.boxFilter(I2,-1,((2*r)+1,(2*r)+1))
+        
+        # cov_I = mean_I2 - cv2.pow(mean_I,2);
+        
+        # var_I = cov_I;
+        
+        # a = cv2.divide(cov_I,var_I+eps)
+        # b = mean_I - (a*mean_I)
+        
+        # mean_a = cv2.boxFilter(a,-1,((2*r)+1,(2*r)+1))
+        # mean_b = cv2.boxFilter(b,-1,((2*r)+1,(2*r)+1))
+        
+        # regularizer = (mean_a * I) + mean_b
+    else:
+        regularizer = 0.0
 
     return regularizer
 

@@ -66,10 +66,10 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
             file_name += '_new_{}'.format(opt.version)
         if arch_name in hasPWConvArchs:
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-        if opt.nuc_loss:
-            file_name += '_nl{}'.format(opt.nls)
-        if opt.pcc_loss:
-            file_name += '_pl{}'.format(opt.pls)
+        if opt.tv_loss:
+            file_name += '_tvl{}'.format(opt.tvls)
+        # if opt.gif_loss:
+        #     file_name += '_gifl{}'.format(opt.gifls)
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
@@ -99,10 +99,10 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
             file_name += '_new_{}'.format(opt.version)
         if arch_name in hasPWConvArchs:
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-        if opt.nuc_loss:
-            file_name += '_nl{}'.format(opt.nls)
-        if opt.pcc_loss:
-            file_name += '_pl{}'.format(opt.pls)
+        if opt.tv_loss:
+            file_name += '_tvl{}'.format(opt.tvls)
+        # if opt.gif_loss:
+        #     file_name += '_gifl{}'.format(opt.gifls)
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
@@ -223,7 +223,13 @@ def accuracy(output, target, topk=(1,)):
         maxk = max(topk)
         batch_size = target.size(0)
 
-        _, pred = output.topk(maxk, 1, True, True)
+        # _, pred = output.topk(maxk, 1, True, True)
+        # pred = pred.t()
+        # correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        # faster topk (ref: https://github.com/pytorch/pytorch/issues/22812)
+        _, idx = output.sort(descending=True)
+        pred = idx[:,:maxk]
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
 
