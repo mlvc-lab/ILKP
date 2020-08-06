@@ -65,6 +65,8 @@ def config():
                         dest='weight_decay')
     # parser.add_argument('--nesterov', dest='nesterov', action='store_true',
     #                     help='use nesterov momentum?')
+    parser.add_argument('--basetest', dest='basetest', action='store_true',
+                        help='baseline test (various weight decay test) (\'_wd\{\}\' added in filename)')
     parser.add_argument('--layers', default=16, type=int, metavar='N',
                         help='number of layers in VGG/ResNet/WideResNet (default: 16)')
     parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
