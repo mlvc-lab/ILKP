@@ -4,7 +4,7 @@ for data in cifar10 cifar100
 do
     for model in mobilenet mobilenetv2 resnet
     do
-        for wd in 1e-4 5e-4
+        for wd in 1e-04 5e-04
         do
             if [ "$model" = "resnet" ]; then
                 for layer in 20 32 44 56 110
