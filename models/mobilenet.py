@@ -298,6 +298,7 @@ def mobilenet(data='cifar10', **kwargs):
         data (str): the name of datasets
     """
     width_mult = kwargs.get('width_mult')
+    # quant = kwargs.get('quant')
     if data in ['cifar10', 'cifar100']:
         return MobileNet_CIFAR(int(data[5:]), width_mult)
     elif data == 'imagenet':

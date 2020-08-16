@@ -25,16 +25,27 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 
 - v2
   - v2
-  - v2q (quantization ver)
-  - v2qq (quantization ver with alpha, beta quantization)
-    - v2qq-epsv1 (add epsilon to every denom with v2qq)
-    - v2qq-epsv2 (if denom is 0, set denom to epsilon with v2qq)
-    - v2qq-epsv3 (if alpha is nan, set alpha to 1.0 with v2qq)
+  - v2q ($\alpha$, $\beta$ quantization and adding epsilon in denom of $\alpha$)
+  - v2qq (quantization ver with $\alpha$, $\beta$ quantization and adding epsilon in denom of $\alpha$)
   - v2f (fixed index $k$ during retraining time with v2qq)
-  - v2nb (no $\beta$ with v2qq)
-    - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
+  - v2nb (no $\beta$ with v2)
+  - v2qnb (no $\beta$ with v2q)
+  - v2qqnb (no $\beta$ with v2qq)
   - v2.5 (old: v3) (binding dwkernels) (현재는 사용 불가)
 - v3: rotation, flip, shift (구현중지)
+
+----------
+
+## Details of training each dataset
+
+- CIFAR
+  - initial lr: 0.1
+  - wd: 5e-4
+  - epochs: 200
+- ImageNet
+  - initial lr: 0.1
+  - wd: 4e-5? 1e-5?
+  - epochs: 90
 
 ----------
 

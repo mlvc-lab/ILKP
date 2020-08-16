@@ -62,15 +62,15 @@ def main():
                 exit()
             weight_analysis(model, checkpoint)
             return
-        # if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-        #     print('==> {}bit Quantization...'.format(opt.quant_bit))
-        #     quantize(model, opt, opt.quant_bit)
-        #     if arch_name in hasPWConvArchs and not opt.np:
-        #         quantize(model, opt, opt.quant_bit, is_pw=True)
+        if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+            print('==> {}bit Quantization...'.format(opt.quant_bit))
+            quantize(model, opt, opt.quant_bit)
+            if arch_name in hasPWConvArchs:
+                quantize(model, opt, opt.quant_bit, is_pw=True)
         print('==> Find the most similar kernel in reference layers ' +
               'from filters at Checkpoint \'{}\''.format(opt.ckpt))
         indices = find_kernel(model, opt)
-        if arch_name in hasPWConvArchs and not opt.np:
+        if arch_name in hasPWConvArchs:
             indices_pw = find_kernel_pw(model, opt)
             indices = (indices, indices_pw)
         new_ckpt_name = save_model(checkpoint, indices)
@@ -95,58 +95,79 @@ def find_kernel(model, opt):
     idx_all = []
 
     ref_layer = torch.Tensor(w_kernel[ref_layer_num])
+
     # change kernels to dw-kernel
     if opt.arch in hasDiffLayersArchs:
         ref_layer = ref_layer.view(-1, 9)
     else:
         ref_layer = ref_layer.view(len(w_kernel[ref_layer_num]), -1)
-    ref_length = ref_layer.size()[0]
-    ref_mean = ref_layer.mean(dim=1, keepdim=True)
-    ref_norm = ref_layer - ref_mean
-    denom = (ref_norm * ref_norm).sum(dim=1)
 
-    # epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
-    # if opt.version == 'v2qq-epsv1': # add epsilon to every denom
-    #     denom += epsilon
-    # elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
-    #     denom[denom.eq(0.0)] = epsilon
+    ref_length = ref_layer.size()[0]
+    if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+        denom = (ref_layer * ref_layer).sum(dim=1)
+    else:
+        ref_mean = ref_layer.mean(dim=1, keepdim=True)
+        ref_norm = ref_layer - ref_mean
+        denom = (ref_norm * ref_norm).sum(dim=1)
+
+    # add epsilon to every denom
+    if opt.version in ['v2q', 'v2qq', 'v2f', 'v2qnb', 'v2qqnb']:
+        denom += opt.epsilon # epsilon for non-zero denom (default: 1e-08)
+
     denom = denom.view(-1, ref_length)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
         cur_weight = torch.Tensor(w_kernel[i])
+
         # change kernels to dw-kernel
         if opt.arch in hasDiffLayersArchs:
             cur_weight = cur_weight.view(-1, 9)
         else:
             cur_weight = cur_weight.view(len(w_kernel[i]), -1)
+
         cur_length = cur_weight.size()[0]
-        cur_mean = cur_weight.mean(dim=1, keepdim=True)
-        cur_norm = cur_weight - cur_mean
+        if opt.version not in ['v2nb', 'v2qnb', 'v2qqnb']:
+            cur_mean = cur_weight.mean(dim=1, keepdim=True)
+            cur_norm = cur_weight - cur_mean
 
         for j in range(cur_length):
-            numer = torch.matmul(cur_norm[j], ref_norm.T)
+            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                numer = torch.matmul(cur_weight[j], ref_layer.T)
+            else:
+                numer = torch.matmul(cur_norm[j], ref_norm.T)
             alphas = deepcopy(numer / denom)
             del numer
 
-            # if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
-            #     alphas[alphas.ne(alphas)] = 1.0
-
-            betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
-            residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
-                cur_weight[j].expand_as(ref_layer)
+            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                residual_mat = ref_layer * alphas.view(ref_length, -1) -\
+                    cur_weight[j].expand_as(ref_layer)
+            else:
+                betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
+                residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
+                    cur_weight[j].expand_as(ref_layer)
             residual_mat = residual_mat.abs().sum(dim=1)
             k = deepcopy(residual_mat.argmin().item())
             alpha = deepcopy(alphas[0][k].item())
-            beta = deepcopy(betas[0][k].item())
-            ref_idx = (k, alpha, beta)
+            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                ref_idx = (k, alpha)
+            else:
+                beta = deepcopy(betas[0][k].item())
+                ref_idx = (k, alpha, beta)
             idx.append(ref_idx)
-            del alphas, betas, residual_mat
-
-        del cur_weight, cur_norm, cur_mean, cur_length
+            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                del alphas, residual_mat
+            else:
+                del alphas, betas, residual_mat
+        if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+            del cur_weight, cur_length
+        else:
+            del cur_weight, cur_norm, cur_mean, cur_length
         idx_all.append(idx)
-
-    del ref_layer, ref_mean, ref_norm, denom
+    if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+        del ref_layer, denom
+    else:
+        del ref_layer, ref_mean, ref_norm, denom
 
     return idx_all
 
@@ -179,15 +200,16 @@ def find_kernel_pw(model, opt):
         num_slices += 1
     ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices, pwd)
     ref_length = ref_layer_slices.size(0)
-    ref_mean = ref_layer_slices.mean(dim=1, keepdim=True)
-    ref_norm = ref_layer_slices - ref_mean
-    _denom = (ref_norm * ref_norm).sum(dim=1)
+    if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+        _denom = (ref_layer_slices * ref_layer_slices).sum(dim=1)
+    else:
+        ref_mean = ref_layer_slices.mean(dim=1, keepdim=True)
+        ref_norm = ref_layer_slices - ref_mean
+        _denom = (ref_norm * ref_norm).sum(dim=1)
 
-    # epsilon = opt.epsilon # epsilon for non-zero denom (default: 1e-08)
-    # if opt.version == 'v2qq-epsv1': # add epsilon to every denom
-    #     _denom += epsilon
-    # elif opt.version == 'v2qq-epsv2': # if denom is 0, set denom to epsilon
-    #     _denom[_denom.eq(0.0)] = epsilon
+    # add epsilon to every denom
+    if opt.version in ['v2q', 'v2qq', 'v2f', 'v2qnb', 'v2qqnb']:
+        _denom += opt.epsilon # epsilon for non-zero denom (default: 1e-08)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -198,41 +220,51 @@ def find_kernel_pw(model, opt):
         for j in range(cur_layer_length):
             cur_weight = cur_layer[j].view(-1, pwd)
             cur_length = cur_weight.size(0)
-            cur_mean = cur_weight.mean(dim=1, keepdim=True)
-            cur_norm = cur_weight - cur_mean
-
-            numer = torch.matmul(cur_norm, ref_norm.T)
+            if opt.version not in ['v2nb', 'v2qnb', 'v2qqnb']:
+                cur_mean = cur_weight.mean(dim=1, keepdim=True)
+                cur_norm = cur_weight - cur_mean
+                numer = torch.matmul(cur_norm, ref_norm.T)
+            else:
+                numer = torch.matmul(cur_weight, ref_layer_slices.T)
             denom = deepcopy(_denom.expand_as(numer))
             alphas = deepcopy(numer / denom)
             del numer, denom
 
-            # if opt.version == 'v2qq-epsv3': # if alpha is nan, set alpha to 1.0
-            #     alphas[alphas.ne(alphas)] = 1.0
-
-            betas = cur_mean - alphas * ref_mean.view(-1, ref_length).expand_as(alphas)
+            if opt.version not in ['v2nb', 'v2qnb', 'v2qqnb']:
+                betas = cur_mean - alphas * ref_mean.view(-1, ref_length).expand_as(alphas)
             for idx_cur_slice in range(cur_length):
                 cur_alphas = alphas[idx_cur_slice].view(ref_length, -1)
-                cur_betas = betas[idx_cur_slice].view(ref_length, -1)
-                residual_mat = (ref_layer_slices * cur_alphas + cur_betas) -\
-                    cur_weight[idx_cur_slice].expand_as(ref_layer_slices)
+                if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                    residual_mat = ref_layer_slices * cur_alphas -\
+                        cur_weight[idx_cur_slice].expand_as(ref_layer_slices)
+                else:
+                    cur_betas = betas[idx_cur_slice].view(ref_length, -1)
+                    residual_mat = (ref_layer_slices * cur_alphas + cur_betas) -\
+                        cur_weight[idx_cur_slice].expand_as(ref_layer_slices)
                 residual_mat = residual_mat.abs().sum(dim=1)
                 k = deepcopy(residual_mat.argmin().cpu().item())
                 alpha = deepcopy(alphas[idx_cur_slice][k].cpu().item())
-                beta = deepcopy(betas[idx_cur_slice][k].cpu().item())
                 # k = deepcopy(residual_mat.argmin().item())
                 # alpha = deepcopy(alphas[idx_cur_slice][k].item())
-                # beta = deepcopy(betas[idx_cur_slice][k].item())
-                ref_idx = (k, alpha, beta)
+                if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                    ref_idx = (k, alpha)
+                else:
+                    beta = deepcopy(betas[idx_cur_slice][k].cpu().item())
+                    # beta = deepcopy(betas[idx_cur_slice][k].item())
+                    ref_idx = (k, alpha, beta)
                 idx.append(ref_idx)
-
-            del alphas, betas, cur_alphas, cur_weight, cur_betas, cur_norm, cur_mean, cur_length
+            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                del alphas, cur_alphas, cur_weight, cur_length
+            else:
+                del alphas, betas, cur_alphas, cur_weight, cur_betas, cur_norm, cur_mean, cur_length
             torch.cuda.empty_cache()
-
         del cur_layer
         torch.cuda.empty_cache()
         idx_all.append(idx)
-
-    del ref_layer, ref_mean, ref_norm, _denom
+    if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+        del ref_layer, _denom
+    else:
+        del ref_layer, ref_mean, ref_norm, _denom
 
     return idx_all
 
@@ -240,42 +272,41 @@ def find_kernel_pw(model, opt):
 def save_model(ckpt, indices_all):
     r"""Save new model
     """
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         indices, indices_pw = indices_all
     else:
         indices = indices_all
 
-    # if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a,
-    #                 num_bits_b=opt.quant_bit_b)
-    # elif opt.version == 'v2nb':
-    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a)
-    if arch_name in hasPWConvArchs and not opt.np:
-        # if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a,
-        #                 num_bits_b=opt.quant_bit_b)
-        # elif opt.version == 'v2nb':
-        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
+    if opt.version in ['v2q', 'v2qq', 'v2f']:
+        print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+    elif opt.version in ['v2qnb', 'v2qqnb']:
+        print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
+    if arch_name in hasPWConvArchs:
+        if opt.version in ['v2q', 'v2qq', 'v2f']:
+            print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+        elif opt.version in ['v2qnb', 'v2qqnb']:
+            print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     ckpt['idx'] = indices
     ckpt['version'] = opt.version
     new_model_filename = '{}_{}'.format(opt.ckpt[:-4], opt.version)
-    if opt.np:
-        new_model_filename += '_np'
-    elif arch_name in hasPWConvArchs:
+    if arch_name in hasPWConvArchs:
         new_model_filename += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-    # if opt.version in ['v2q', 'v2qq', 'v2f', 'v2nb', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-    #     new_model_filename += '_q{}'.format(opt.quant_bit)
-    #     if opt.version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-    #         new_model_filename += '{}{}'.format(
-    #             opt.quant_bit_a, opt.quant_bit_b)
-    #         if opt.version in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-    #             new_model_filename += '_eps{}'.format(
-    #                 opt.epsilon)
-    #     elif opt.version == 'v2nb':
-    #         new_model_filename += '{}'.format(
-    #             opt.quant_bit_a)
+    if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+        new_model_filename += '_q{}a{}'.format(opt.quant_bit, opt.quant_bit_a)
+        if opt.version != 'v2qqnb':
+            new_model_filename += 'b{}'.format(opt.quant_bit_b)
+        new_model_filename += '_eps{:.0e}'.format(opt.epsilon)
+    elif opt.version in ['v2q', 'v2qnb']:
+        new_model_filename += '_qa{}'.format(opt.quant_bit_a)
+        if opt.version != 'v2qnb':
+            new_model_filename += 'b{}'.format(opt.quant_bit_b)
+        new_model_filename += '_eps{:.0e}'.format(opt.epsilon)
     # elif opt.version in ['v3', 'v3a']:
     #     new_model_filename += '_d{}'.format(opt.bind_size)
     new_model_filename += '.pth'

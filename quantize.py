@@ -98,7 +98,7 @@ def quantize_ab(indices, num_bits_a: int=8, num_bits_b=None):
 
     Args:
         num_bits_a (int): number of bits for quantizing $\alpha$
-        num_bits_b (int): number of bits for quantiznig $\beta$, if this parameter is None, just quantize $\alpha$.
+        num_bits_b (int): number of bits for quantiznig $\beta$, if this parameter is None, just quantize $\alpha$. (v2nb)
     """
     qmin_a = -2.**(num_bits_a - 1.)
     qmax_a = 2.**(num_bits_a - 1.) - 1.
@@ -109,25 +109,33 @@ def quantize_ab(indices, num_bits_a: int=8, num_bits_b=None):
     for i in tqdm(range(len(indices)), ncols=80, unit='layer'):
         k = []
         alphas = []
-        betas = []
+        if num_bits_b is not None:
+            betas = []
         for j in range(len(indices[i])):
-            _k, _alpha, _beta = indices[i][j]
+            if num_bits_b is None:
+                _k, _alpha = indices[i][j]
+            else:
+                _k, _alpha, _beta = indices[i][j]
             k.append(_k)
             alphas.append(_alpha)
-            betas.append(_beta)
+            if num_bits_b is not None:
+                betas.append(_beta)
         min_val_a = np.amin(alphas)
         max_val_a = np.amax(alphas)
         scale_a = (max_val_a - min_val_a) / (qmax_a - qmin_a)
         alphas = np.around(np.clip(alphas / scale_a, qmin_a, qmax_a))
         alphas = scale_a * alphas
-        if num_bits_a is not None:
+        if num_bits_b is not None:
             min_val_b = np.amin(betas)
             max_val_b = np.amax(betas)
             scale_b = (max_val_b - min_val_b) / (qmax_b - qmin_b)
             betas = np.around(np.clip(betas / scale_b, qmin_b, qmax_b))
             betas = scale_b * betas
         for j in range(len(indices[i])):
-            indices[i][j] = k[j], alphas[j], betas[j]
+            if num_bits_b is None:
+                indices[i][j] = k[j], alphas[j]
+            else:
+                indices[i][j] = k[j], alphas[j], betas[j]
 
 
 if __name__ == '__main__':

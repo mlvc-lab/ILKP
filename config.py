@@ -10,21 +10,17 @@ model_names = sorted(name for name in models.__dict__
 r'''version list
 - v2
   - v2
-  - v2q (quantization ver)
-  - v2qq (quantization ver with alpha, beta qunatization)
-    - v2qq-epsv1 (add epsilon to every denom with v2qq)
-    - v2qq-epsv2 (if denom is 0, set denom to epsilon with v2qq)
-    - v2qq-epsv3 (if alpha is nan, set alpha to 1.0 with v2qq)
-  - v2f (fixed index $k$ during retraining time with v2qqpq)
-  - v2nb (no $\beta$ with v2qqpq)
-    - np: no adaptation v2, v2q, ⋯ for pointwise convolutional layers
-  - v2.5
+  - v2q ($\alpha$, $\beta$ quantization and adding epsilon in denom of $\alpha$)
+  - v2qq (quantization ver with $\alpha$, $\beta$ quantization and adding epsilon in denom of $\alpha$)
+  - v2f (fixed index $k$ during retraining time with v2qq)
+  - v2qnb (no $\beta$ with v2q)
+  - v2qqnb (no $\beta$ with v2qq)
+  - v2.5 (old: v3)
 - v3: rotation, flip, shift
 '''
 versions = [
-    'v2',
-    # 'v2q', 'v2qq', 'v2f', 'v2nb', #'v2.5',
-    # 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3',
+    'v2', 'v2q', 'v2qq', 'v2f', 'v2nb', 'v2qnb', 'v2qqnb',
+    # 'v2.5',
     # 'v3',
 ]
 
@@ -111,28 +107,18 @@ def config():
                              '(default: 1)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
-    parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-8, type=float, metavar='EPS',
-                        help='epsilon for denominator of alpha in find_kernel (default: 1e-5)')
-    parser.add_argument('-s', '--save-epoch', dest='save_epoch', default=5, type=int, metavar='N',
-                        help='number of epochs to save checkpoint and to apply new method (default: 5)')
+    parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-08, type=float, metavar='EPS',
+                        help='epsilon for denominator of alpha in find_kernel (default: 1e-08)')
+    parser.add_argument('-s', '--save-epoch', dest='save_epoch', default=1, type=int, metavar='N',
+                        help='number of epochs to save checkpoint and to apply new method (default: 1)')
     parser.add_argument('--tvl', '--tv-loss', dest='tv_loss', action='store_true',
                         help='total variation loss?')
-    parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1e-6, type=float,
-                        help='scale factor of tv_loss (default: 1e-6)')
-    # parser.add_argument('--gifl', '--gif-loss', dest='gif_loss', action='store_true',
-    #                     help='guided image filter loss?')
-    # parser.add_argument('--gifls', '--gifl-scale', dest='gifls', default=1e-6, type=float,
-    #                     help='scale factor of gif_loss (default: 1e-6)')
-    # parser.add_argument('--gifl-eps', '--gifl-epsilon', dest='gifleps', default=0.04, type=float,
-    #                     help='scale factor of gif_loss (default: 0.04)')
-    # parser.add_argument('--gifl-r', '--gifl-radius', dest='giflr', default=4, type=int,
-    #                     help='scale factor of gif_loss (default: 4)')
-    parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
-                        help='weight analysis in find_similar_kernel.py')
+    parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1e-08, type=float,
+                        help='scale factor of tv_loss (default: 1e-08)')
     parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metavar='N',
                         help='number of warmup epochs for applying the V2 method (default: 0)')
-    parser.add_argument('--np', action='store_true',
-                        help='no v2-like method in pointwise convolutional layer?')
+    parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
+                        help='weight analysis in find_similar_kernel.py')
     # for quantization
     parser.add_argument('-Q', '--quant', dest='quant', action='store_true',
                         help='use quantization?')

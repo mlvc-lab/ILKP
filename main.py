@@ -123,8 +123,9 @@ def main(args):
             if opt.new:
                 # logging at sacred
                 ex.log_scalar('version', checkpoint['version'])
-                # if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                #     ex.log_scalar('epsilon', opt.epsilon)
+                if checkpoint['version'] in ['v2q', 'v2qq', 'v2f']:
+                    ex.log_scalar('epsilon', opt.epsilon)
+
                 print('===> Change indices to weights..')
                 idxtoweight(opt, model, checkpoint['idx'], checkpoint['version'])
 
@@ -169,8 +170,8 @@ def main(args):
 
                 # logging at sacred
                 ex.log_scalar('version', checkpoint['version'])
-                # if checkpoint['version'] in ['v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-                #     ex.log_scalar('epsilon', opt.epsilon)
+                if checkpoint['version'] in ['v2q', 'v2qq', 'v2f']:
+                    ex.log_scalar('epsilon', opt.epsilon)
 
                 print('===> Change indices to weights..')
                 idxtoweight(opt, model, checkpoint['idx'], opt.version)
@@ -189,23 +190,29 @@ def main(args):
     extra_time = 0.0
     for epoch in range(start_epoch, opt.epochs):
         adjust_learning_rate(optimizer, epoch, opt)
-        if not opt.new:
-            print('\n==> {}/{} training'.format(
-                arch_name, opt.dataset))
-        else:
-            print('\n==> {}/{}-new_{} training'.format(
-                arch_name, opt.dataset, opt.version))
+        train_info = '\n==> {}/{} '.format(arch_name, opt.dataset)
+        if opt.new:
+            train_info += 'new_{} '.format(opt.version)
+            if opt.version in ['v2q', 'v2qq', 'v2f']:
+                train_info += 'a{}b{}bit '.format(opt.quant_bit_a, opt.quant_bit_b)
+            elif opt.version in ['v2qnb', 'v2qqnb']:
+                train_info += 'a{}bit '.format(opt.quant_bit_a)
+            if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+                train_info += 'w{}bit '.format(opt.quant_bit)
+        if opt.retrain:
+            train_info += '{}-th re'.format(n_retrain)
+        train_info += 'training'
+        if opt.new:
+            train_info += '\n==> Version: {} '.format(opt.version)
             if opt.tv_loss:
-                print('==> Version: {} with TV loss / SaveEpoch: {}'.format(
-                    opt.version, opt.save_epoch))
-            else:
-                print('==> Version: {} / SaveEpoch: {}'.format(
-                    opt.version, opt.save_epoch))
+                train_info += 'with TV loss '
+            train_info += '/ SaveEpoch: {}'.format(opt.save_epoch)
             if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
-                print('==> V2 Warmup epochs up to {} epochs'.format(
-                    opt.warmup_epoch))
-        print('==> Epoch: {}, lr = {}'.format(
-            epoch, optimizer.param_groups[0]["lr"]))
+                train_info += '\n==> V2 Warmup epochs up to {} epochs'.format(
+                    opt.warmup_epoch)
+        train_info += '\n==> Epoch: {}, lr = {}'.format(
+            epoch, optimizer.param_groups[0]["lr"])
+        print(train_info)
 
         # train for one epoch
         print('===> [ Training ]')
@@ -217,13 +224,26 @@ def main(args):
         train_time += elapsed_time
         print('====> {:.2f} seconds to train this epoch\n'.format(
             elapsed_time))
+
         start_time = time.time()
         if opt.new:
+            if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+                print('==> {}bit Quantization...'.format(opt.quant_bit))
+                quantize(model, opt, opt.quant_bit)
+                if arch_name in hasPWConvArchs:
+                    quantize(model, opt, opt.quant_bit, is_pw=True)
             if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 pass
             elif (epoch-opt.warmup_epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 print('===> Change kernels using {}'.format(opt.version))
                 indices = find_similar_kernel_n_change(opt, model, opt.version)
+        else:
+            if opt.quant:
+                print('==> {}bit Quantization...'.format(opt.quant_bit))
+                quantize(model, opt, opt.quant_bit)
+                if arch_name in hasPWConvArchs:
+                    print('==> {}bit pwconv Quantization...'.format(opt.quant_bit))
+                    quantize(model, opt, opt.quant_bit, is_pw=True)
         elapsed_time = time.time() - start_time
         extra_time += elapsed_time
         print('====> {:.2f} seconds for extra time this epoch\n'.format(
@@ -327,10 +347,6 @@ def train(opt, train_loader, **kwargs):
         if opt.tv_loss:
             regularizer = new_regularizer(opt, model, 'tv')
             loss += regularizer
-        # option 2) add guided image filter loss
-        # if opt.gif_loss:
-        #     regularizer = new_regularizer(opt, model, 'gif')
-        #     loss += regularizer
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -447,7 +463,7 @@ def new_regularizer(opt, model, regularizer_name='tv'):
             except:
                 conv_cur = model.get_layer_conv(i).weight.view(-1, 9)
             conv_all = torch.cat((conv_all, conv_cur), 0)
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         try:
             num_pwlayer = model.module.get_num_pwconv_layer()
             pwconv_all = model.module.get_layer_pwconv(0).weight
@@ -465,33 +481,12 @@ def new_regularizer(opt, model, regularizer_name='tv'):
 
     if regularizer_name == 'tv':
         regularizer = torch.sum(torch.abs(conv_all[:, :-1] - conv_all[:, 1:])) + torch.sum(torch.abs(conv_all[:-1, :] - conv_all[1:, :]))
-        if arch_name in hasPWConvArchs and not opt.np:
+        if arch_name in hasPWConvArchs:
             regularizer += torch.sum(torch.abs(pwconv_all[:, :-1] - pwconv_all[:, 1:])) + torch.sum(torch.abs(pwconv_all[:-1, :] - pwconv_all[1:, :]))
         regularizer = opt.tvls * regularizer
-    elif regularizer_name == 'gif':
-        #TODO: guided image filter loss 구현
-        regularizer = 0.0
-        # import cv2
-        # eps = opt.gifleps
-        
-        # I = np.double(conv_all)
-        # I2 = cv2.pow(I,2);
-        # mean_I = cv2.boxFilter(I,-1,((2*r)+1,(2*r)+1))
-        # mean_I2 = cv2.boxFilter(I2,-1,((2*r)+1,(2*r)+1))
-        
-        # cov_I = mean_I2 - cv2.pow(mean_I,2);
-        
-        # var_I = cov_I;
-        
-        # a = cv2.divide(cov_I,var_I+eps)
-        # b = mean_I - (a*mean_I)
-        
-        # mean_a = cv2.boxFilter(a,-1,((2*r)+1,(2*r)+1))
-        # mean_b = cv2.boxFilter(b,-1,((2*r)+1,(2*r)+1))
-        
-        # regularizer = (mean_a * I) + mean_b
     else:
         regularizer = 0.0
+        raise NotImplementedError
 
     return regularizer
 
@@ -504,22 +499,22 @@ def find_similar_kernel_n_change(opt, model, version):
         version (str): version name of new method
     """
     indices = find_kernel(model, opt)
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         indices_pw = find_kernel_pw(model, opt)
 
-    # if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-    #     print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
-    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-    # elif version == 'v2nb':
-    #     print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
-    #     quantize_ab(indices, num_bits_a=opt.quant_bit_a)
-    if arch_name in hasPWConvArchs and not opt.np:
-        # if version in ['v2qq', 'v2f', 'v2qq-epsv1', 'v2qq-epsv2', 'v2qq-epsv3']:
-        #     print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
-        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-        # elif version == 'v2nb':
-        #     print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
-        #     quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
+    if version in ['v2q', 'v2qq', 'v2f']:
+        print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+    elif version in ['v2qnb', 'v2qqnb']:
+        print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
+        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
+    if arch_name in hasPWConvArchs:
+        if version in ['v2q', 'v2qq', 'v2f']:
+            print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
+        elif version in ['v2qnb', 'v2qqnb']:
+            print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
+            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
         indices = (indices, indices_pw)
 
     # change idx to kernel
@@ -538,11 +533,11 @@ def idxtoweight(opt, model, indices_all, version):
     """
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         w_pwkernel = get_kernel(model, opt, is_pw=True)
         num_pwlayer = len(w_pwkernel)
 
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         indices, indices_pw = indices_all
     else:
         indices = indices_all
@@ -552,12 +547,18 @@ def idxtoweight(opt, model, indices_all, version):
         for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
             for j in range(len(w_kernel[i])):
                 for k in range(len(w_kernel[i][j])):
-                    ref_idx, alpha, beta = indices[i-1][j*len(w_kernel[i][j])+k]
+                    if version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                        ref_idx, alpha = indices[i-1][j*len(w_kernel[i][j])+k]
+                    else:
+                        ref_idx, alpha, beta = indices[i-1][j*len(w_kernel[i][j])+k]
                     v = ref_idx // len(w_kernel[ref_layer_num][0])
                     w = ref_idx % len(w_kernel[ref_layer_num][0])
-                    w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w] + beta
+                    if version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                        w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w]
+                    else:
+                        w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w] + beta
 
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         if version.find('v2') != -1:
             pwd = opt.pw_bind_size
             pws = opt.pwkernel_stride
@@ -579,11 +580,15 @@ def idxtoweight(opt, model, indices_all, version):
                 for j in range(len(w_pwkernel[i])):
                     num_slices = len(w_pwkernel[i][j])//pwd
                     for k in range(num_slices):
-                        ref_idx, alpha, beta = indices_pw[i-1][j*num_slices+k]
-                        w_pwkernel[i][j][k*pwd:(k+1)*pwd] = alpha * ref_layer_slices[ref_idx] + beta
+                        if version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                            ref_idx, alpha = indices_pw[i-1][j*num_slices+k]
+                            w_pwkernel[i][j][k*pwd:(k+1)*pwd] = alpha * ref_layer_slices[ref_idx]
+                        else:
+                            ref_idx, alpha, beta = indices_pw[i-1][j*num_slices+k]
+                            w_pwkernel[i][j][k*pwd:(k+1)*pwd] = alpha * ref_layer_slices[ref_idx] + beta
 
     set_kernel(w_kernel, model, opt)
-    if arch_name in hasPWConvArchs and not opt.np:
+    if arch_name in hasPWConvArchs:
         set_kernel(w_pwkernel, model, opt, is_pw=True)
 
 

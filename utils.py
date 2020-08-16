@@ -68,11 +68,22 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
         if opt.tv_loss:
             file_name += '_tvl{:.0e}'.format(opt.tvls)
-        # if opt.gif_loss:
-        #     file_name += '_gifl{}'.format(opt.gifls)
+        if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+            file_name += '_q{}a{}'.format(opt.quant_bit, opt.quant_bit_a)
+            if opt.version != 'v2qqnb':
+                file_name += 'b{}'.format(opt.quant_bit_b)
+            file_name += '_eps{:.0e}'.format(opt.epsilon)
+        elif opt.version in ['v2q', 'v2qnb']:
+            file_name += '_qa{}'.format(opt.quant_bit_a)
+            if opt.version != 'v2qnb':
+                file_name += 'b{}'.format(opt.quant_bit_b)
+            file_name += '_eps{:.0e}'.format(opt.epsilon)
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
+    else:
+        if opt.quant:
+            file_name += '_q{}'.format(opt.quant_bit)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
 
@@ -103,11 +114,22 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
         if opt.tv_loss:
             file_name += '_tvl{:.0e}'.format(opt.tvls)
-        # if opt.gif_loss:
-        #     file_name += '_gifl{}'.format(opt.gifls)
+        if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+            file_name += '_q{}a{}'.format(opt.quant_bit, opt.quant_bit_a)
+            if opt.version != 'v2qqnb':
+                file_name += 'b{}'.format(opt.quant_bit_b)
+            file_name += '_eps{:.0e}'.format(opt.epsilon)
+        elif opt.version in ['v2q', 'v2qnb']:
+            file_name += '_qa{}'.format(opt.quant_bit_a)
+            if opt.version != 'v2qnb':
+                file_name += 'b{}'.format(opt.quant_bit_b)
+            file_name += '_eps{:.0e}'.format(opt.epsilon)
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
+    else:
+        if opt.quant:
+            file_name += '_q{}'.format(opt.quant_bit)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
     file_name += '.csv'
