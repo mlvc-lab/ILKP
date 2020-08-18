@@ -163,7 +163,7 @@ def main(args):
             # logging at sacred
             ex.log_scalar('n_retrain', n_retrain)
 
-            if not opt.quant:
+            if opt.new:
                 if opt.version != checkpoint['version']:
                     print('version argument is different with saved checkpoint version!!')
                     exit()
@@ -199,6 +199,9 @@ def main(args):
                 train_info += 'a{}bit '.format(opt.quant_bit_a)
             if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
                 train_info += 'w{}bit '.format(opt.quant_bit)
+        else:
+            if opt.quant:
+                train_info += '{}bit '.format(opt.quant_bit)
         if opt.retrain:
             train_info += '{}-th re'.format(n_retrain)
         train_info += 'training'
@@ -432,7 +435,6 @@ def new_regularizer(opt, model, regularizer_name='tv'):
     Args:
         regularizer_name (str): name of regularizer
             - 'tv': total variation loss (https://towardsdatascience.com/pytorch-implementation-of-perceptual-losses-for-real-time-style-transfer-8d608e2e9902)
-            - 'gif': guieded image filter loss
     """
     # get all convolution weights and reshape
     if opt.arch in hasDWConvArchs:

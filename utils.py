@@ -82,6 +82,8 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
     else:
+        if opt.retrain:
+            file_name += '_rt{}'.format(n_retrain)
         if opt.quant:
             file_name += '_q{}'.format(opt.quant_bit)
     if opt.basetest:
@@ -128,6 +130,8 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
     else:
+        if opt.retrain:
+            file_name += '_rt{}'.format(n_retrain)
         if opt.quant:
             file_name += '_q{}'.format(opt.quant_bit)
     if opt.basetest:
