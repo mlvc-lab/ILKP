@@ -61,6 +61,48 @@ class BasicBlock(nn.Module):
         return out
 
 
+class BasicDropoutBlock(nn.Module):
+    expansion = 1
+    __constants__ = ['downsample']
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None, drop_rate=0.3):
+        super(BasicDropoutBlock, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = norm_layer(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.drop_rate = drop_rate
+        self.dropout = nn.Dropout(p=self.drop_rate)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = norm_layer(planes)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        if self.drop_rate > 0:
+            out = self.dropout(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+
 class Bottleneck(nn.Module):
     expansion = 4
     __constants__ = ['downsample']
@@ -108,12 +150,13 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None):
+                 norm_layer=None, drop_rate=0.0):
         super(ResNet, self).__init__()
         self.block_name = str(block.__name__)
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
+        self.drop_rate = drop_rate
 
         self.inplanes = 64
         self.dilation = 1
@@ -172,13 +215,22 @@ class ResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
+        if self.block_name == 'BasicDropoutBlock':
+            layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
+                                self.base_width, previous_dilation, norm_layer, self.drop_rate))
+        else:
+            layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
+                                self.base_width, previous_dilation, norm_layer))
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, groups=self.groups,
-                                base_width=self.base_width, dilation=self.dilation,
-                                norm_layer=norm_layer))
+            if self.block_name == 'BasicDropoutBlock':
+                layers.append(block(self.inplanes, planes, groups=self.groups,
+                                    base_width=self.base_width, dilation=self.dilation,
+                                    norm_layer=norm_layer, drop_rate=self.drop_rate))
+            else:
+                layers.append(block(self.inplanes, planes, groups=self.groups,
+                                    base_width=self.base_width, dilation=self.dilation,
+                                    norm_layer=norm_layer))
 
         return nn.Sequential(*layers)
 
@@ -320,12 +372,13 @@ class ResNet(nn.Module):
 class ResNet_CIFAR(nn.Module):
     def __init__(self, block, layers, num_classes=10, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None):
+                 norm_layer=None, drop_rate=0.0):
         super(ResNet_CIFAR, self).__init__()
         self.block_name = str(block.__name__)
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
+        self.drop_rate = drop_rate
 
         self.inplanes = 16
         self.dilation = 1
@@ -381,13 +434,22 @@ class ResNet_CIFAR(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
+        if self.block_name == 'BasicDropoutBlock':
+            layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
+                                self.base_width, previous_dilation, norm_layer, self.drop_rate))
+        else:
+            layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
+                                self.base_width, previous_dilation, norm_layer))
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes, groups=self.groups,
-                                base_width=self.base_width, dilation=self.dilation,
-                                norm_layer=norm_layer))
+            if self.block_name == 'BasicDropoutBlock':
+                layers.append(block(self.inplanes, planes, groups=self.groups,
+                                    base_width=self.base_width, dilation=self.dilation,
+                                    norm_layer=norm_layer, drop_rate=self.drop_rate))
+            else:
+                layers.append(block(self.inplanes, planes, groups=self.groups,
+                                    base_width=self.base_width, dilation=self.dilation,
+                                    norm_layer=norm_layer))
 
         return nn.Sequential(*layers)
 
@@ -530,6 +592,19 @@ cfgs_cifar = {
     '56':  [9, 9, 9],
     '110': [18, 18, 18],
 }
+cfgs_wrn = {
+    '18':  (BasicBlock, [2, 2, 2, 2]),
+    '34':  (BasicBlock, [3, 4, 6, 3]),
+    '50':  (Bottleneck, [3, 4, 6, 3]),
+    '101': (Bottleneck, [3, 4, 23, 3]),
+}
+cfgs_wrn_cifar = {
+    '16':  [2, 2, 2],
+    '22':  [3, 3, 3],
+    '28':  [4, 4, 4],
+    '40':  [6, 6, 6],
+    '52':  [8, 8, 8],
+}
 
 
 def resnet(data='cifar10', **kwargs):
@@ -539,7 +614,6 @@ def resnet(data='cifar10', **kwargs):
         data (str): the name of datasets
     """
     num_layers = str(kwargs.get('num_layers'))
-    width_mult = kwargs.get('width_mult')
     if data in ['cifar10', 'cifar100']:
         if num_layers in cfgs_cifar.keys():
             return ResNet_CIFAR(BasicBlock, cfgs_cifar[num_layers], int(data[5:]))
@@ -557,8 +631,8 @@ def resnet(data='cifar10', **kwargs):
     else:
         return None
 
-'''
-def wideresnet(data='imagenet', **kwargs):
+
+def wideresnet(data='cifar10', **kwargs):
     r"""WideResNet models from "[Wide Residual Networks](https://arxiv.org/abs/1605.07146)"
 
     Args:
@@ -566,18 +640,25 @@ def wideresnet(data='imagenet', **kwargs):
     """
     num_layers = str(kwargs.get('num_layers'))
     width_mult = kwargs.get('width_mult')
-    if data == 'cifar10':
-        return ResNet_CIFAR(10)
-    elif data == 'cifar100':
-        return ResNet_CIFAR(100)
+    drop_rate = kwargs.get('drop_rate')
+    if data in ['cifar10', 'cifar100']:
+        if num_layers in cfgs_wrn_cifar.keys():
+            return ResNet_CIFAR(BasicDropoutBlock, cfgs_wrn_cifar[num_layers], int(data[5:]),
+                                width_per_group=64*width_mult, drop_rate=drop_rate)
+        else:
+            return None
     elif data == 'imagenet':
-        return ResNet(1000)
+        if num_layers in cfgs_wrn.keys():
+            block, layers = cfgs_wrn[num_layers]
+            return ResNet(block, layers, 1000)
+        else:
+            return None
     # TODO:
     # elif data == 'tinyimagenet':
     #     return ResNet(100)
     else:
         return None
-
+'''
 def wide_resnet50_2(pretrained=False, progress=True, **kwargs):
     r"""Wide ResNet-50-2 model from
     `"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>`_

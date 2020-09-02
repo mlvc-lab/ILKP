@@ -70,6 +70,9 @@ def config():
     parser.add_argument('--width-mult', default=1.0, type=float, metavar='WM',
                         help='width multiplier to thin a network '
                              'uniformly at each layer (default: 1.0)')
+    parser.add_argument('--dr', '--drop-rate', default=0.3, type=float,
+                        metavar='DR', help='dropout rate for WRN (default: 0.3)',
+                        dest='drop_rate')
     parser.add_argument('-p', '--print-freq', default=100, type=int,
                         metavar='N', help='print frequency (default: 100)')
     parser.add_argument('--ckpt', default='', type=str, metavar='PATH',

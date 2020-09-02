@@ -56,7 +56,8 @@ def main(args):
 
     print('\n=> creating model \'{}\''.format(arch_name))
     model = models.__dict__[opt.arch](data=opt.dataset, num_layers=opt.layers,
-                                      width_mult=opt.width_mult, batch_norm=opt.bn)
+                                      width_mult=opt.width_mult, batch_norm=opt.bn,
+                                      drop_rate=opt.drop_rate)
 
     if model is None:
         print('==> unavailable model parameters!! exit...\n')

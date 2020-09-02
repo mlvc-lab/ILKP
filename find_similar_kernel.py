@@ -110,9 +110,9 @@ def find_kernel(model, opt):
         ref_norm = ref_layer - ref_mean
         denom = (ref_norm * ref_norm).sum(dim=1)
 
-    # add epsilon to every denom
+    # add epsilon if denom is zero
     if opt.version in ['v2q', 'v2qq', 'v2f', 'v2qnb', 'v2qqnb']:
-        denom += opt.epsilon # epsilon for non-zero denom (default: 1e-08)
+        denom = torch.clamp(denom, min=opt.epsilon) # epsilon for non-zero denom (default: 1e-08)
 
     denom = denom.view(-1, ref_length)
 
