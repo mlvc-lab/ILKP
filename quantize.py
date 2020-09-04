@@ -73,7 +73,8 @@ def save_quantized_model(model, ckpt, num_bits: int=8):
 def quantize(model, opt, num_bits: int=8, is_pw: bool=False):
     r"""Quantize weights of convolution kernels
 
-    Args:
+    Arguments
+    ---------
         num_bits (int): number of bits for quantization
         is_pw (bool): If you want to quantize pointwise convolution weigts, set this parameter `True`.
     """
@@ -96,7 +97,8 @@ def quantize(model, opt, num_bits: int=8, is_pw: bool=False):
 def quantize_ab(indices, num_bits_a: int=8, num_bits_b=None):
     r"""quantize $\alpha$ and $\beta$
 
-    Args:
+    Arguments
+    ---------
         num_bits_a (int): number of bits for quantizing $\alpha$
         num_bits_b (int): number of bits for quantiznig $\beta$, if this parameter is None, just quantize $\alpha$. (v2nb)
     """

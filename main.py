@@ -241,6 +241,9 @@ def main(args):
             elif (epoch-opt.warmup_epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 print('===> Change kernels using {}'.format(opt.version))
                 indices = find_similar_kernel_n_change(opt, model, opt.version)
+                if opt.chk_save:
+                    print('====> Save index and kernel for analysis')
+                    save_index_n_kernel(opt, arch_name, epoch, model, indices, n_retrain)
         else:
             if opt.quant:
                 print('==> {}bit Quantization...'.format(opt.quant_bit))
@@ -433,7 +436,8 @@ def validate(opt, val_loader, epoch, model, criterion):
 def new_regularizer(opt, model, regularizer_name='tv'):
     r"""Add new regularizer
 
-    Args:
+    Arguments
+    ---------
         regularizer_name (str): name of regularizer
             - 'tv': total variation loss (https://towardsdatascience.com/pytorch-implementation-of-perceptual-losses-for-real-time-style-transfer-8d608e2e9902)
     """
@@ -498,7 +502,8 @@ def new_regularizer(opt, model, regularizer_name='tv'):
 def find_similar_kernel_n_change(opt, model, version):
     r"""Find the most similar kernel and change the kernel
 
-    Args:
+    Arguments
+    ---------
         version (str): version name of new method
     """
     indices = find_kernel(model, opt)
@@ -530,7 +535,8 @@ def find_similar_kernel_n_change(opt, model, version):
 def idxtoweight(opt, model, indices_all, version):
     r"""Change indices to weights
 
-    Args:
+    Arguments
+    ---------
         indices_all (list): all indices with index of the most similar kernel, $\alpha$ and $\beta$
         version (str): version name of new method
     """

@@ -1,5 +1,6 @@
 import torch
 
+from tqdm import tqdm
 import csv
 import shutil
 import pathlib
@@ -96,6 +97,101 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
 
     if is_best:
         shutil.copyfile(model_file, dir_path / file_name_best)
+
+
+def save_index_n_kernel(opt, arch_name, epoch, model, indices_all, n_retrain):
+    r"""Save index and kernel weights for check
+    """
+    w_kernel = get_kernel(model, opt)
+    num_layer = len(w_kernel)
+    if arch_name in hasPWConvArchs:
+        w_pwkernel = get_kernel(model, opt, is_pw=True)
+        num_pwlayer = len(w_pwkernel)
+
+    if arch_name in hasPWConvArchs:
+        indices, indices_pw = indices_all
+    else:
+        indices = indices_all
+    #TODO: pointwise부분 작성
+
+    ref_layer_num = 0
+    save_indices = []
+    cur_kernels = []
+    ref_kernels = []
+    for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+        save_indices.append(indices[i-1][opt.chk_num])
+        j = opt.chk_num // len(w_kernel[i][0])
+        k = opt.chk_num % len(w_kernel[i][0])
+        cur_kernel = w_kernel[i][j][k].tolist()
+        cur_kernels.append(cur_kernel)
+        ref_idx = indices[i-1][opt.chk_num][0]
+        v = ref_idx // len(w_kernel[ref_layer_num][0])
+        w = ref_idx % len(w_kernel[ref_layer_num][0])
+        ref_kernel = w_kernel[ref_layer_num][v][w].tolist()
+        ref_kernels.append(ref_kernel)
+    save_dic = {
+        'epoch': epoch,
+        'save_indices': save_indices,
+        'cur_kernels': cur_kernels,
+        'ref_kernels': ref_kernels,
+    }
+
+    import json
+    dir_summary = pathlib.Path('summary')
+    dir_path = dir_summary / 'json'
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    file_name = '{}_{}'.format(arch_name, opt.dataset)
+    if opt.new:
+        if opt.retrain:
+            file_name += '_rt{}_{}'.format(n_retrain, opt.version)
+        else:
+            file_name += '_new_{}'.format(opt.version)
+        if arch_name in hasPWConvArchs:
+            file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
+        if opt.tv_loss:
+            file_name += '_tvl{:.0e}'.format(opt.tvls)
+        if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
+            file_name += '_q{}a{}'.format(opt.quant_bit, opt.quant_bit_a)
+            if opt.version != 'v2qqnb':
+                file_name += 'b{}'.format(opt.quant_bit_b)
+            file_name += '_eps{:.0e}'.format(opt.epsilon)
+        elif opt.version in ['v2q', 'v2qnb']:
+            file_name += '_qa{}'.format(opt.quant_bit_a)
+            if opt.version != 'v2qnb':
+                file_name += 'b{}'.format(opt.quant_bit_b)
+            file_name += '_eps{:.0e}'.format(opt.epsilon)
+        file_name += '_s{}'.format(opt.save_epoch)
+        if opt.warmup_epoch > 0:
+            file_name += '_warm{}'.format(opt.warmup_epoch)
+    else:
+        if opt.retrain:
+            file_name += '_rt{}'.format(n_retrain)
+        if opt.quant:
+            file_name += '_q{}'.format(opt.quant_bit)
+    if opt.basetest:
+        file_name += '_wd{:.0e}'.format(opt.weight_decay)
+    file_name += '.json'
+    file_summ = dir_path / file_name
+
+    first_save_epoch = 0
+    if opt.new:
+        # opt.warmup_epoch is 0 in default configuration
+        first_save_epoch = opt.warmup_epoch + opt.save_epoch - 1
+
+    if epoch == first_save_epoch:
+        with open(file_summ, 'w') as fout:
+            json.dump(save_dic, fout)
+    else:
+        file_temp = dir_path / 'temp.json'
+        shutil.copyfile(file_summ, file_temp)
+        with open(file_temp, 'r') as fin:
+            temp_data = [json.loads(line) for line in fin]
+            temp_data.append(save_dic)
+            with open(file_summ, 'w') as fout:
+                for dic in temp_data:
+                    json.dump(dic, fout) 
+                    fout.write("\n")
 
 
 def save_summary(arch_name, summary, opt, n_retrain: int=0):
@@ -289,7 +385,8 @@ def set_arch_name(opt):
 def get_kernel(model, opt, is_pw: bool=False):
     r"""Get all convolutional kernel weights in model
 
-    Args:
+    Arguments
+    ---------
         is_pw (bool): If you want to get pwkernels weigts, set this parameter `True`.
     """
     if not is_pw:
@@ -323,7 +420,8 @@ def get_kernel(model, opt, is_pw: bool=False):
 def set_kernel(w_kernel, model, opt, is_pw: bool=False):
     r"""Set all convolutional kernel weights in model
 
-    Args:
+    Arguments
+    ---------
         is_pw (bool): If you want to set pointwise convolution weigts, set this parameter `True`.
     """
     if not is_pw:

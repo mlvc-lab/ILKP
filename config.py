@@ -131,6 +131,11 @@ def config():
                         help='number of bits for quantizing alphas (default: 8)')
     parser.add_argument('--qbb', '--quant_bit_b', default=8, type=int, metavar='N', dest='quant_bit_b',
                         help='number of bits for quantizing betas (default: 8)')
+    # for analysis
+    parser.add_argument('--chk-save', dest='chk_save', action='store_true',
+                        help='save indices and kernel weight for check index variation at fine-tuning')
+    parser.add_argument('--chk-num', default=0, type=int, metavar='N', dest='chk_num',
+                        help='number of channel number for check index variation at fine-tuning')
 
     cfg = parser.parse_args()
     cfg.gpuids = list(map(int, cfg.gpuids))
