@@ -192,6 +192,7 @@ def save_index_n_kernel(opt, arch_name, epoch, model, indices_all, n_retrain):
                 for dic in temp_data:
                     json.dump(dic, fout) 
                     fout.write("\n")
+        remove(file_temp)
 
 
 def save_summary(arch_name, summary, opt, n_retrain: int=0):
