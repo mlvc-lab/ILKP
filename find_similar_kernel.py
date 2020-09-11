@@ -81,7 +81,7 @@ def main():
             opt.ckpt))
         exit()
 
-#TODO: corrcoef 다시 코딩
+
 def find_kernel(model, opt):
     r"""Find the most similar kernel
 
@@ -103,20 +103,22 @@ def find_kernel(model, opt):
         ref_layer = ref_layer.view(len(w_kernel[ref_layer_num]), -1)
 
     ref_length = ref_layer.size()[0]
-    # print(ref_layer.size())
-    # exit()
-    if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-        denom = (ref_layer * ref_layer).sum(dim=1)
-    else:
-        ref_mean = ref_layer.mean(dim=1, keepdim=True)
-        ref_norm = ref_layer - ref_mean
-        denom = (ref_norm * ref_norm).sum(dim=1)
+
+    ref_mean = ref_layer.mean(dim=1, keepdim=True)
+    ref_norm = ref_layer - ref_mean
+    ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
+    ref_norm_sq_rt = torch.sqrt(ref_norm_sq)
 
     # add epsilon if denom is zero
-    if opt.version in ['v2q', 'v2qq', 'v2f', 'v2qnb', 'v2qqnb']:
-        denom = torch.clamp(denom, min=opt.epsilon) # epsilon for non-zero denom (default: 1e-08)
-
-    denom = denom.view(-1, ref_length)
+    if opt.version in ['v2q', 'v2qq', 'v2f']:
+        alpha_denom = torch.clamp(ref_norm_sq, min=opt.epsilon) # epsilon for non-zero denom (default: 1e-08)
+    elif opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+        alpha_denom = (ref_layer * ref_layer).sum(dim=1)
+    elif opt.version == 'v2':
+        alpha_denom = ref_norm_sq
+    
+    if opt.version.find('v2') != -1:
+        alpha_denom = alpha_denom.view(-1, ref_length)
 
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
@@ -129,51 +131,48 @@ def find_kernel(model, opt):
             cur_weight = cur_weight.view(len(w_kernel[i]), -1)
 
         cur_length = cur_weight.size()[0]
-        if opt.version not in ['v2nb', 'v2qnb', 'v2qqnb']:
-            cur_mean = cur_weight.mean(dim=1, keepdim=True)
-            cur_norm = cur_weight - cur_mean
+
+        cur_mean = cur_weight.mean(dim=1, keepdim=True)
+        cur_norm = cur_weight - cur_mean
+        cur_norm_sq_rt = torch.sqrt((cur_norm * cur_norm).sum(dim=1))
 
         for j in range(cur_length):
-            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                numer = torch.matmul(cur_weight[j], ref_layer.T)
-            else:
-                numer = torch.matmul(cur_norm[j], ref_norm.T)
-            alphas = deepcopy(numer / denom)
-            del numer
+            numer = torch.matmul(cur_norm[j], ref_norm.T)
+            denom = ref_norm_sq_rt * cur_norm_sq_rt[j]
+            pcc = numer / denom
 
-            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                residual_mat = ref_layer * alphas.view(ref_length, -1) -\
-                    cur_weight[j].expand_as(ref_layer)
-            else:
-                betas = cur_mean[j][0] - alphas * ref_mean.view(-1, ref_length)
-                residual_mat = (ref_layer * alphas.view(ref_length, -1) + betas.view(ref_length, -1)) -\
-                    cur_weight[j].expand_as(ref_layer)
-            residual_mat = residual_mat.abs().sum(dim=1)
-            k = deepcopy(residual_mat.argmin().item())
-            alpha = deepcopy(alphas[0][k].item())
-            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                ref_idx = (k, alpha)
-            else:
-                beta = deepcopy(betas[0][k].item())
+            pcc[pcc.ne(pcc)] = 0.0 # if pcc is nan, set pcc to 0.0
+            abs_pcc = torch.abs(pcc)
+            k = deepcopy(abs_pcc.argmax().item())
+
+            if opt.version in ['v2', 'v2q', 'v2qq', 'v2f']:
+                alpha_numer = numer[k]
+            elif opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                alpha_numer = torch.matmul(cur_weight[j], ref_layer[k].T)
+            if opt.version.find('v2') != -1:
+                _alpha = alpha_numer / alpha_denom[0][k]
+                alpha = deepcopy(_alpha.item())
+                del _alpha
+            if opt.version in ['v2', 'v2q', 'v2qq', 'v2f']:
+                _beta = cur_mean[j][0] - alpha * ref_mean[k][0]
+                beta = deepcopy(_beta.item())
+                del _beta
+            del numer, denom, pcc, abs_pcc
+
+            if opt.version in ['v2', 'v2q', 'v2qq', 'v2f']:
                 ref_idx = (k, alpha, beta)
+            elif opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                ref_idx = (k, alpha)
+            elif opt.version == 'v1':
+                ref_idx = k
             idx.append(ref_idx)
-            if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                del alphas, residual_mat
-            else:
-                del alphas, betas, residual_mat
-        if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-            del cur_weight, cur_length
-        else:
-            del cur_weight, cur_norm, cur_mean, cur_length
+        del cur_weight, cur_length, cur_mean, cur_norm, cur_norm_sq_rt
         idx_all.append(idx)
-    if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
-        del ref_layer, denom
-    else:
-        del ref_layer, ref_mean, ref_norm, denom
+    del ref_layer, ref_mean, ref_norm, ref_norm_sq, ref_norm_sq_rt
 
     return idx_all
 
-
+#TODO: corrcoef 코딩
 def find_kernel_pw(model, opt):
     r"""Find the most similar kernel in pointwise convolutional layers using `cuda`
 
@@ -248,7 +247,9 @@ def find_kernel_pw(model, opt):
                 alpha = deepcopy(alphas[idx_cur_slice][k].cpu().item())
                 # k = deepcopy(residual_mat.argmin().item())
                 # alpha = deepcopy(alphas[idx_cur_slice][k].item())
-                if opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
+                if opt.version == 'v1':
+                    ref_idx = k
+                elif opt.version in ['v2nb', 'v2qnb', 'v2qqnb']:
                     ref_idx = (k, alpha)
                 else:
                     beta = deepcopy(betas[idx_cur_slice][k].cpu().item())

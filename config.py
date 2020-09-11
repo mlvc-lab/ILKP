@@ -8,6 +8,7 @@ model_names = sorted(name for name in models.__dict__
     and callable(models.__dict__[name]))
 
 r'''version list
+- v1
 - v2
   - v2
   - v2q ($\alpha$, $\beta$ quantization and adding epsilon in denom of $\alpha$)
@@ -19,6 +20,7 @@ r'''version list
 - v3: rotation, flip, shift
 '''
 versions = [
+    'v1',
     'v2', 'v2q', 'v2qq', 'v2f', 'v2nb', 'v2qnb', 'v2qqnb',
     # 'v2.5',
     # 'v3',

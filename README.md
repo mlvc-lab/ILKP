@@ -23,6 +23,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 
 ## Details of storing version
 
+- v1: just using k
 - v2
   - v2
   - v2q ($\alpha$, $\beta$ quantization and adding epsilon in denom of $\alpha$)

@@ -236,7 +236,7 @@ def main(args):
                 quantize(model, opt, opt.quant_bit)
                 if arch_name in hasPWConvArchs:
                     quantize(model, opt, opt.quant_bit, is_pw=True)
-            if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
+            if epoch < opt.warmup_epoch:
                 pass
             elif (epoch-opt.warmup_epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 print('===> Change kernels using {}'.format(opt.version))
@@ -286,7 +286,7 @@ def main(args):
             save_model(arch_name, state, epoch, is_best, opt, n_retrain)
             save_summary(arch_name, summary, opt, n_retrain)
         else:
-            if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
+            if epoch < opt.warmup_epoch:
                 pass
             elif (epoch-opt.warmup_epoch+1) % opt.save_epoch == 0: # every 'opt.save_epoch' epochs
                 state['new'] = True
@@ -566,8 +566,17 @@ def idxtoweight(opt, model, indices_all, version):
                         w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w]
                     else:
                         w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w] + beta
+    elif version == 'v1':
+        for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
+            for j in range(len(w_kernel[i])):
+                for k in range(len(w_kernel[i][j])):
+                    ref_idx = indices[i-1][j*len(w_kernel[i][j])+k]
+                    v = ref_idx // len(w_kernel[ref_layer_num][0])
+                    w = ref_idx % len(w_kernel[ref_layer_num][0])
+                    w_kernel[i][j][k] = w_kernel[ref_layer_num][v][w]
 
     if arch_name in hasPWConvArchs:
+        #TODO: v1 부분 코딩
         if version.find('v2') != -1:
             pwd = opt.pw_bind_size
             pws = opt.pwkernel_stride
