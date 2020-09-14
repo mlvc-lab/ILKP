@@ -124,7 +124,10 @@ def save_index_n_kernel(opt, arch_name, epoch, model, indices_all, n_retrain):
         k = opt.chk_num % len(w_kernel[i][0])
         cur_kernel = w_kernel[i][j][k].tolist()
         cur_kernels.append(cur_kernel)
-        ref_idx = indices[i-1][opt.chk_num][0]
+        if opt.version == 'v1':
+            ref_idx = indices[i-1][opt.chk_num]
+        else:
+            ref_idx = indices[i-1][opt.chk_num][0]
         v = ref_idx // len(w_kernel[ref_layer_num][0])
         w = ref_idx % len(w_kernel[ref_layer_num][0])
         ref_kernel = w_kernel[ref_layer_num][v][w].tolist()
