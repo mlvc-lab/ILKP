@@ -9,7 +9,7 @@ do
         do
             if [ "$model" = "resnet" ]; then
                 # for layer in 20 32 44 56 110
-                for layer in 20 32 44
+                for layer in 20 32 44 56 110
                 do
                     echo "v2qq"
                     python3 find_similar_kernel.py $data -a $model --layers $layer --ckpt ckpt_best.pth -v v2qq --qb $qb
