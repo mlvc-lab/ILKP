@@ -33,7 +33,7 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
   - v2qnb (no $\beta$ with v2q)
   - v2qqnb (no $\beta$ with v2qq)
   - v2.5 (old: v3) (binding dwkernels) (현재는 사용 불가)
-- v3: rotation, flip, shift (구현중지)
+- v3: spatial size가 변화된 각 stage의 첫번째 layer가 각 레이어에서 reference layer가 됨.
 
 ----------
 
