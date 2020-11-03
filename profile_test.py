@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
+import torch.autograd.profiler as profiler
 
 import models
 import config
@@ -405,7 +406,8 @@ def validate(opt, val_loader, epoch, model, criterion):
                 target = target.cuda(non_blocking=True)
 
             # compute output
-            output = model(input)
+            with profiler.profile(use_cuda=True, profile_memory=True, record_shapes=True) as prof:
+                output = model(input)
             loss = criterion(output, target)
 
             # measure accuracy and record loss
@@ -424,6 +426,7 @@ def validate(opt, val_loader, epoch, model, criterion):
 
         print('====> Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
+        print(prof.key_averages().table(sort_by="cuda_memory_usage"))
 
     # logging at sacred
     ex.log_scalar('test.loss', losses.avg, epoch)
@@ -491,125 +494,11 @@ def new_regularizer(opt, model, regularizer_name='tv'):
         if arch_name in hasPWConvArchs:
             regularizer += torch.sum(torch.abs(pwconv_all[:, :-1] - pwconv_all[:, 1:])) + torch.sum(torch.abs(pwconv_all[:-1, :] - pwconv_all[1:, :]))
         regularizer = opt.tvls * regularizer
-    elif regularizer_name == 'ortho':
-        pass
     else:
         regularizer = 0.0
         raise NotImplementedError
 
     return regularizer
-
-
-#TODO: v2f k fix하고 alpha beta 찾는 방법 코딩
-def find_similar_kernel_n_change(opt, model, version):
-    r"""Find the most similar kernel and change the kernel
-
-    Arguments
-    ---------
-        version (str): version name of new method
-    """
-    indices = find_kernel(model, opt)
-    if arch_name in hasPWConvArchs:
-        indices_pw = find_kernel_pw(model, opt)
-
-    if version in ['v2q', 'v2qq', 'v2f']:
-        print('====> {}/{}bit Quantization for alpha/beta...'.format(opt.quant_bit_a, opt.quant_bit_b))
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-    elif version in ['v2qnb', 'v2qqnb']:
-        print('====> {}bit Quantization for alpha...'.format(opt.quant_bit_a))
-        quantize_ab(indices, num_bits_a=opt.quant_bit_a)
-    if arch_name in hasPWConvArchs:
-        if version in ['v2q', 'v2qq', 'v2f']:
-            print('====> {}/{}bit Quantization for alpha/beta in pwconv...'.format(opt.quant_bit_a, opt.quant_bit_b))
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a, num_bits_b=opt.quant_bit_b)
-        elif version in ['v2qnb', 'v2qqnb']:
-            print('====> {}bit Quantization for alpha in pwconv...'.format(opt.quant_bit_a))
-            quantize_ab(indices_pw, num_bits_a=opt.quant_bit_a)
-        indices = (indices, indices_pw)
-
-    # change idx to kernel
-    print('===> Change indices to weights..')
-    idxtoweight(opt, model, indices, version)
-
-    return indices
-
-
-def idxtoweight(opt, model, indices_all, version):
-    r"""Change indices to weights
-
-    Arguments
-    ---------
-        indices_all (list): all indices with index of the most similar kernel, $\alpha$ and $\beta$
-        version (str): version name of new method
-    """
-    w_kernel = get_kernel(model, opt)
-    num_layer = len(w_kernel)
-    if arch_name in hasPWConvArchs:
-        w_pwkernel = get_kernel(model, opt, is_pw=True)
-        num_pwlayer = len(w_pwkernel)
-
-    if arch_name in hasPWConvArchs:
-        indices, indices_pw = indices_all
-    else:
-        indices = indices_all
-
-    ref_layer_num = 0
-    if version.find('v2') != -1:
-        for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
-            for j in range(len(w_kernel[i])):
-                for k in range(len(w_kernel[i][j])):
-                    if version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                        ref_idx, alpha = indices[i-1][j*len(w_kernel[i][j])+k]
-                    else:
-                        ref_idx, alpha, beta = indices[i-1][j*len(w_kernel[i][j])+k]
-                    v = ref_idx // len(w_kernel[ref_layer_num][0])
-                    w = ref_idx % len(w_kernel[ref_layer_num][0])
-                    if version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                        w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w]
-                    else:
-                        w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w] + beta
-    elif version == 'v1':
-        for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
-            for j in range(len(w_kernel[i])):
-                for k in range(len(w_kernel[i][j])):
-                    ref_idx = indices[i-1][j*len(w_kernel[i][j])+k]
-                    v = ref_idx // len(w_kernel[ref_layer_num][0])
-                    w = ref_idx % len(w_kernel[ref_layer_num][0])
-                    w_kernel[i][j][k] = w_kernel[ref_layer_num][v][w]
-
-    if arch_name in hasPWConvArchs:
-        #TODO: v1 부분 코딩
-        if version.find('v2') != -1:
-            pwd = opt.pw_bind_size
-            pws = opt.pwkernel_stride
-            ref_layer = torch.Tensor(w_pwkernel[ref_layer_num])
-            ref_layer = ref_layer.view(ref_layer.size(0), ref_layer.size(1))
-            ref_layer_slices = None
-            num_slices = (ref_layer.size(1) - pwd) // pws + 1
-            for i in range(0, ref_layer.size(1) - pwd + 1, pws):
-                if ref_layer_slices == None:
-                    ref_layer_slices = ref_layer[:,i:i+pwd]
-                else:
-                    ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:,i:i+pwd]), dim=1)
-            if ((ref_layer.size(1) - pwd) % pws) != 0:
-                ref_layer_slices = torch.cat((ref_layer_slices, ref_layer[:, -pwd:]), dim=1)
-                num_slices += 1
-            ref_layer_slices = ref_layer_slices.view(ref_layer.size(0)*num_slices, pwd)
-            ref_layer_slices = ref_layer_slices.view(-1, pwd, 1, 1).numpy()
-            for i in tqdm(range(1, num_pwlayer), ncols=80, unit='layer'):
-                for j in range(len(w_pwkernel[i])):
-                    num_slices = len(w_pwkernel[i][j])//pwd
-                    for k in range(num_slices):
-                        if version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                            ref_idx, alpha = indices_pw[i-1][j*num_slices+k]
-                            w_pwkernel[i][j][k*pwd:(k+1)*pwd] = alpha * ref_layer_slices[ref_idx]
-                        else:
-                            ref_idx, alpha, beta = indices_pw[i-1][j*num_slices+k]
-                            w_pwkernel[i][j][k*pwd:(k+1)*pwd] = alpha * ref_layer_slices[ref_idx] + beta
-
-    set_kernel(w_kernel, model, opt)
-    if arch_name in hasPWConvArchs:
-        set_kernel(w_pwkernel, model, opt, is_pw=True)
 
 
 if __name__ == '__main__':
