@@ -2,7 +2,6 @@ import time
 import pathlib
 from os.path import isfile
 
-import numpy as np
 from tqdm import tqdm
 
 import torch
@@ -354,6 +353,18 @@ def train(opt, train_loader, **kwargs):
         if opt.tv_loss:
             regularizer = new_regularizer(opt, model, 'tv')
             loss += regularizer
+        # option 2) add orthogonal loss
+        if opt.ortho_loss:
+            regularizer = new_regularizer(opt, model, 'ortho')
+            loss += regularizer
+        # option 3) add correlation loss
+        if opt.cor_loss:
+            regularizer = new_regularizer(opt, model, 'cor')
+            loss += regularizer
+        # option 4) add orthogonal-correlation loss
+        if opt.ortho_cor_loss:
+            regularizer = new_regularizer(opt, model, 'ortho-cor')
+            loss += regularizer
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -440,8 +451,11 @@ def new_regularizer(opt, model, regularizer_name='tv'):
     ---------
         regularizer_name (str): name of regularizer
             - 'tv': total variation loss (https://towardsdatascience.com/pytorch-implementation-of-perceptual-losses-for-real-time-style-transfer-8d608e2e9902)
+            - 'cor': correlation loss
     """
+    regularizer = 0.0
     # get all convolution weights and reshape
+    layer_lengths = []
     if opt.arch in hasDWConvArchs:
         try:
             num_layer = model.module.get_num_dwconv_layer()
@@ -450,6 +464,7 @@ def new_regularizer(opt, model, regularizer_name='tv'):
             num_layer = model.get_num_dwconv_layer()
             conv_all = model.get_layer_dwconv(0).weight
         conv_all = conv_all.view(len(conv_all), -1)
+        layer_lengths.append(len(conv_all))
         for i in range(1, num_layer):
             try:
                 conv_cur = model.module.get_layer_dwconv(i).weight
@@ -457,6 +472,7 @@ def new_regularizer(opt, model, regularizer_name='tv'):
                 conv_cur = model.get_layer_dwconv(i).weight
             conv_cur = conv_cur.view(len(conv_cur), -1)
             conv_all = torch.cat((conv_all, conv_cur), 0)
+            layer_lengths.append(len(conv_cur))
     else:
         try:
             num_layer = model.module.get_num_conv_layer()
@@ -464,13 +480,16 @@ def new_regularizer(opt, model, regularizer_name='tv'):
         except:
             num_layer = model.get_num_conv_layer()
             conv_all = model.get_layer_conv(0).weight.view(-1, 9)
+        layer_lengths.append(len(conv_all))
         for i in range(1, num_layer):
             try:
                 conv_cur = model.module.get_layer_conv(i).weight.view(-1, 9)
             except:
                 conv_cur = model.get_layer_conv(i).weight.view(-1, 9)
             conv_all = torch.cat((conv_all, conv_cur), 0)
+            layer_lengths.append(len(conv_cur))
     if arch_name in hasPWConvArchs:
+        pw_layer_lengths = []
         try:
             num_pwlayer = model.module.get_num_pwconv_layer()
             pwconv_all = model.module.get_layer_pwconv(0).weight
@@ -478,6 +497,7 @@ def new_regularizer(opt, model, regularizer_name='tv'):
             num_pwlayer = model.get_num_pwconv_layer()
             pwconv_all = model.get_layer_pwconv(0).weight
         pwconv_all = pwconv_all.view(-1, opt.pw_bind_size)
+        pw_layer_lengths.append(len(pwconv_all))
         for i in range(1, num_pwlayer):
             try:
                 pwconv_cur = model.module.get_layer_pwconv(i).weight
@@ -485,6 +505,7 @@ def new_regularizer(opt, model, regularizer_name='tv'):
                 pwconv_cur = model.get_layer_pwconv(i).weight
             pwconv_cur = pwconv_cur.view(-1, opt.pw_bind_size)
             pwconv_all = torch.cat((pwconv_all, pwconv_cur), 0)
+            pw_layer_lengths.append(len(pwconv_cur))
 
     if regularizer_name == 'tv':
         regularizer = torch.sum(torch.abs(conv_all[:, :-1] - conv_all[:, 1:])) + torch.sum(torch.abs(conv_all[:-1, :] - conv_all[1:, :]))
@@ -492,7 +513,92 @@ def new_regularizer(opt, model, regularizer_name='tv'):
             regularizer += torch.sum(torch.abs(pwconv_all[:, :-1] - pwconv_all[:, 1:])) + torch.sum(torch.abs(pwconv_all[:-1, :] - pwconv_all[1:, :]))
         regularizer = opt.tvls * regularizer
     elif regularizer_name == 'ortho':
-        pass
+        regularizer = 0.0
+        cur_start = 0
+        for i in range(num_layer):
+            cur_length = layer_lengths[i]
+            cur_conv = conv_all[cur_start:cur_start+cur_length]
+            cur_start += cur_length
+
+            mat_ortho = torch.matmul(cur_conv, cur_conv.T)
+            mat_identity = torch.eye(mat_ortho.size()[0]).cuda() if opt.cuda else torch.eye(mat_ortho.size()[0])
+            regularizer += torch.mean((mat_ortho - mat_identity) ** 2)
+        #TODO: pointwise convolution 부분도 코딩하기
+        # if arch_name in hasPWConvArchs:
+        #     pass
+        regularizer = opt.orthols * regularizer
+    elif regularizer_name == 'cor':
+        ref_length = layer_lengths[opt.refnum]
+        ref_layer = conv_all[:ref_length]
+        ref_mean = ref_layer.mean(dim=1, keepdim=True)
+        ref_norm = ref_layer - ref_mean
+        ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
+        ref_norm_sq_rt = torch.sqrt(ref_norm_sq)
+
+        sum_max_abs_pcc = 0
+        num_max_abs_pcc = 0
+        cur_start = ref_length
+        for i in range(1, num_layer):
+            cur_length = layer_lengths[i]
+            cur_conv = conv_all[cur_start:cur_start+cur_length]
+            cur_start += cur_length
+
+            cur_mean = cur_conv.mean(dim=1, keepdim=True)
+            cur_norm = cur_conv - cur_mean
+            cur_norm_sq_rt = torch.sqrt((cur_norm * cur_norm).sum(dim=1))
+
+            for j in range(cur_length):
+                numer = torch.matmul(cur_norm[j], ref_norm.T)
+                denom = ref_norm_sq_rt * cur_norm_sq_rt[j]
+                pcc = numer / denom
+                pcc[pcc.ne(pcc)] = 0.0 # if pcc is nan, set pcc to 0.0
+                abs_pcc = torch.abs(pcc)
+                k = abs_pcc.argmax().item()
+                sum_max_abs_pcc += abs_pcc[k]
+                num_max_abs_pcc += 1
+        #TODO: pointwise convolution 부분도 코딩하기
+        # if arch_name in hasPWConvArchs:
+        #     pass
+        regularizer = opt.corls * num_max_abs_pcc / sum_max_abs_pcc
+    elif regularizer_name == 'ortho-cor':
+        ref_length = layer_lengths[opt.refnum]
+        ref_layer = conv_all[:ref_length]
+        ref_mean = ref_layer.mean(dim=1, keepdim=True)
+        ref_norm = ref_layer - ref_mean
+        ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
+        ref_norm_sq_rt = torch.sqrt(ref_norm_sq)
+
+        cur_start = 0
+        ortho_regularizer = 0.0
+        sum_max_abs_pcc = 0
+        num_max_abs_pcc = 0
+        for i in range(num_layer):
+            cur_length = layer_lengths[i]
+            cur_conv = conv_all[cur_start:cur_start+cur_length]
+            cur_start += cur_length
+
+            mat_ortho = torch.matmul(cur_conv, cur_conv.T)
+            mat_identity = torch.eye(mat_ortho.size()[0]).cuda() if opt.cuda else torch.eye(mat_ortho.size()[0])
+            ortho_regularizer += torch.mean((mat_ortho - mat_identity) ** 2)
+
+            if i > 0:
+                cur_mean = cur_conv.mean(dim=1, keepdim=True)
+                cur_norm = cur_conv - cur_mean
+                cur_norm_sq_rt = torch.sqrt((cur_norm * cur_norm).sum(dim=1))
+                for j in range(cur_length):
+                    numer = torch.matmul(cur_norm[j], ref_norm.T)
+                    denom = ref_norm_sq_rt * cur_norm_sq_rt[j]
+                    pcc = numer / denom
+                    pcc[pcc.ne(pcc)] = 0.0 # if pcc is nan, set pcc to 0.0
+                    abs_pcc = torch.abs(pcc)
+                    k = abs_pcc.argmax().item()
+                    sum_max_abs_pcc += abs_pcc[k]
+                    num_max_abs_pcc += 1
+        cor_regularizer = sum_max_abs_pcc / num_max_abs_pcc
+        regularizer = opt.orthocorls * (ortho_regularizer / cor_regularizer)
+        #TODO: pointwise convolution 부분도 코딩하기
+        # if arch_name in hasPWConvArchs:
+        #     pass
     else:
         regularizer = 0.0
         raise NotImplementedError
@@ -553,7 +659,7 @@ def idxtoweight(opt, model, indices_all, version):
     else:
         indices = indices_all
 
-    ref_layer_num = 0
+    ref_layer_num = opt.refnum
     if version.find('v2') != -1:
         for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
             for j in range(len(w_kernel[i])):

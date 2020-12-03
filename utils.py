@@ -87,6 +87,15 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
             file_name += '_rt{}'.format(n_retrain)
         if opt.quant:
             file_name += '_q{}'.format(opt.quant_bit)
+    # if (not opt.new) and (opt.ortho_loss or opt.cor_loss or opt.ortho_cor_loss):
+    #     if arch_name in hasPWConvArchs:
+    #         file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
+    if opt.ortho_loss:
+        file_name += '_orthol{:.0e}'.format(opt.orthols)
+    if opt.cor_loss:
+        file_name += '_corl{:.0e}'.format(opt.corls)
+    if opt.ortho_cor_loss:
+        file_name += '_orthocorl{:.0e}'.format(opt.orthocorls)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
 
@@ -214,8 +223,6 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
             file_name += '_new_{}'.format(opt.version)
         if arch_name in hasPWConvArchs:
             file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
-        if opt.tv_loss:
-            file_name += '_tvl{:.0e}'.format(opt.tvls)
         if opt.version in ['v2qq', 'v2f', 'v2qqnb']:
             file_name += '_q{}a{}'.format(opt.quant_bit, opt.quant_bit_a)
             if opt.version != 'v2qqnb':
@@ -234,6 +241,15 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
             file_name += '_rt{}'.format(n_retrain)
         if opt.quant:
             file_name += '_q{}'.format(opt.quant_bit)
+    # if (not opt.new) and (opt.ortho_loss or opt.cor_loss or opt.ortho_cor_loss):
+    #     if arch_name in hasPWConvArchs:
+    #         file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
+    if opt.ortho_loss:
+        file_name += '_orthol{:.0e}'.format(opt.orthols)
+    if opt.cor_loss:
+        file_name += '_corl{:.0e}'.format(opt.corls)
+    if opt.ortho_cor_loss:
+        file_name += '_orthocorl{:.0e}'.format(opt.orthocorls)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
     file_name += '.csv'

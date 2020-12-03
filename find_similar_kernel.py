@@ -91,7 +91,7 @@ def find_kernel(model, opt):
     w_kernel = get_kernel(model, opt)
     num_layer = len(w_kernel)
 
-    ref_layer_num = 0
+    ref_layer_num = opt.refnum
     idx_all = []
 
     ref_layer = torch.Tensor(w_kernel[ref_layer_num])
@@ -185,7 +185,7 @@ def find_kernel_pw(model, opt):
     pws = opt.pwkernel_stride
     idx_all = []
 
-    ref_layer_num = 0
+    ref_layer_num = opt.refnum
     ref_layer = torch.Tensor(w_kernel[ref_layer_num]).cuda()
     # ref_layer = torch.Tensor(w_kernel[ref_layer_num])
     ref_layer = ref_layer.view(ref_layer.size(0), ref_layer.size(1))
@@ -334,7 +334,7 @@ def weight_analysis(model, ckpt):
     indices = find_kernel(model, opt)
     w_kernel = get_kernel(model, opt)
 
-    ref_layer_num = 0
+    ref_layer_num = opt.refnum
     layerNumList = list(range(1, len(w_kernel)))
     randLayerIdx = random.sample(layerNumList, 5)
     for i in tqdm(randLayerIdx, ncols=80, unit='layer'):

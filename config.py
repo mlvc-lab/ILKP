@@ -45,6 +45,16 @@ def config():
                         help='model architecture: ' +
                              ' | '.join(model_names) +
                              ' (default: mobilenet)')
+    parser.add_argument('--layers', default=16, type=int, metavar='N',
+                        help='number of layers in VGG/ResNet/WideResNet (default: 16)')
+    parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
+                        help='Use batch norm in VGG?')
+    parser.add_argument('--width-mult', default=1.0, type=float, metavar='WM',
+                        help='width multiplier to thin a network '
+                             'uniformly at each layer (default: 1.0)')
+    parser.add_argument('--dr', '--drop-rate', default=0.3, type=float,
+                        metavar='DR', help='dropout rate for WRN (default: 0.3)',
+                        dest='drop_rate')
     parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
                         help='number of data loading workers (default: 8)')
     parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -65,16 +75,6 @@ def config():
     #                     help='use nesterov momentum?')
     parser.add_argument('--basetest', dest='basetest', action='store_true',
                         help='baseline test (various weight decay test) (\'_wd\{\}\' added in filename)')
-    parser.add_argument('--layers', default=16, type=int, metavar='N',
-                        help='number of layers in VGG/ResNet/WideResNet (default: 16)')
-    parser.add_argument('--bn', '--batch-norm', dest='bn', action='store_true',
-                        help='Use batch norm in VGG?')
-    parser.add_argument('--width-mult', default=1.0, type=float, metavar='WM',
-                        help='width multiplier to thin a network '
-                             'uniformly at each layer (default: 1.0)')
-    parser.add_argument('--dr', '--drop-rate', default=0.3, type=float,
-                        metavar='DR', help='dropout rate for WRN (default: 0.3)',
-                        dest='drop_rate')
     parser.add_argument('-p', '--print-freq', default=100, type=int,
                         metavar='N', help='print frequency (default: 100)')
     parser.add_argument('--ckpt', default='', type=str, metavar='PATH',
@@ -112,6 +112,8 @@ def config():
                              '(default: 1)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
+    parser.add_argument('-refnum', '--ref_layer_num', dest='refnum', default=0, type=int, metavar='N',
+                        help='reference layer number (default: 0)')
     parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-08, type=float, metavar='EPS',
                         help='epsilon for denominator of alpha in find_kernel (default: 1e-08)')
     parser.add_argument('-s', '--save-epoch', dest='save_epoch', default=1, type=int, metavar='N',
@@ -120,6 +122,18 @@ def config():
                         help='total variation loss?')
     parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1e-08, type=float,
                         help='scale factor of tv_loss (default: 1e-08)')
+    parser.add_argument('--orthol', '--ortho-loss', dest='ortho_loss', action='store_true',
+                        help='orthogonal loss?')
+    parser.add_argument('--orthols', '--orthol-scale', dest='orthols', default=1e-05, type=float,
+                        help='scale factor of ortho_loss (default: 1e-05)')
+    parser.add_argument('--corl', '--cor-loss', dest='cor_loss', action='store_true',
+                        help='correlation loss?')
+    parser.add_argument('--corls', '--corl-scale', dest='corls', default=1e-05, type=float,
+                        help='scale factor of cor_loss (default: 1e-05)')
+    parser.add_argument('--orthocorl', '--ortho-cor-loss', dest='ortho_cor_loss', action='store_true',
+                        help='orthogonal correlation loss?')
+    parser.add_argument('--orthocorls', '--orthocorl-scale', dest='orthocorls', default=1e-05, type=float,
+                        help='scale factor of ortho_cor_loss (default: 1e-05)')
     parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metavar='N',
                         help='number of warmup epochs for applying the V2 method (default: 0)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
