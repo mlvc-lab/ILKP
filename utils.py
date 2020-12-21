@@ -96,6 +96,8 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
         file_name += '_corl{:.0e}'.format(opt.corls)
     if opt.ortho_cor_loss:
         file_name += '_orthocorl{:.0e}'.format(opt.orthocorls)
+    if opt.groupcor_loss:
+        file_name += '_groupcorl{:.0e}_g{}'.format(opt.groupcorls, opt.groupcor_num)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
 
@@ -250,6 +252,8 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
         file_name += '_corl{:.0e}'.format(opt.corls)
     if opt.ortho_cor_loss:
         file_name += '_orthocorl{:.0e}'.format(opt.orthocorls)
+    if opt.groupcor_loss:
+        file_name += '_groupcorl{:.0e}_g{}'.format(opt.groupcorls, opt.groupcor_num)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
     file_name += '.csv'

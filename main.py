@@ -365,6 +365,10 @@ def train(opt, train_loader, **kwargs):
         if opt.ortho_cor_loss:
             regularizer = new_regularizer(opt, model, 'ortho-cor')
             loss += regularizer
+        # option 5) add group-correlation loss
+        if opt.groupcor_loss:
+            regularizer = new_regularizer(opt, model, 'groupcor')
+            loss += regularizer
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -599,6 +603,45 @@ def new_regularizer(opt, model, regularizer_name='tv'):
         #TODO: pointwise convolution 부분도 코딩하기
         # if arch_name in hasPWConvArchs:
         #     pass
+    elif regularizer_name == 'groupcor':
+        ref_length = layer_lengths[opt.refnum]
+        ref_layer = conv_all[:ref_length]
+        ref_mean = ref_layer.mean(dim=1, keepdim=True)
+        ref_norm = ref_layer - ref_mean
+        ref_norm_sq = (ref_norm * ref_norm).sum(dim=1)
+        ref_norm_sq_rt = torch.sqrt(ref_norm_sq)
+        ref_group_size = 3 * opt.groupcor_num # ResNet만 가능하게 짜놔서 바꿔야됨..
+
+        sum_max_abs_pcc = 0
+        num_max_abs_pcc = 0
+        cur_start = ref_length
+        for i in range(1, num_layer):
+            cur_length = layer_lengths[i]
+            cur_conv = conv_all[cur_start:cur_start+cur_length]
+            cur_start += cur_length
+
+            cur_mean = cur_conv.mean(dim=1, keepdim=True)
+            cur_norm = cur_conv - cur_mean
+            cur_norm_sq_rt = torch.sqrt((cur_norm * cur_norm).sum(dim=1))
+
+            grouped_ref_start = 0
+            cur_group_size = (cur_length*opt.groupcor_num)//16
+            for j in range(cur_length):
+                numer = torch.matmul(cur_norm[j], ref_norm[grouped_ref_start:grouped_ref_start+ref_group_size].T)
+                denom = ref_norm_sq_rt[grouped_ref_start:grouped_ref_start+ref_group_size] * cur_norm_sq_rt[j]
+                pcc = numer / denom
+                pcc[pcc.ne(pcc)] = 0.0 # if pcc is nan, set pcc to 0.0
+                abs_pcc = torch.abs(pcc)
+                k = abs_pcc.argmax().item()
+                sum_max_abs_pcc += abs_pcc[k]
+                num_max_abs_pcc += 1
+                # ResNet만 가능하게 짜놔서 바꿔야됨..
+                if (j+1)%cur_group_size == 0:
+                    grouped_ref_start += ref_group_size
+        #TODO: pointwise convolution 부분도 코딩하기
+        # if arch_name in hasPWConvArchs:
+        #     pass
+        regularizer = opt.groupcorls * num_max_abs_pcc / sum_max_abs_pcc
     else:
         regularizer = 0.0
         raise NotImplementedError

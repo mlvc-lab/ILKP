@@ -134,6 +134,13 @@ def config():
                         help='orthogonal correlation loss?')
     parser.add_argument('--orthocorls', '--orthocorl-scale', dest='orthocorls', default=1e-05, type=float,
                         help='scale factor of ortho_cor_loss (default: 1e-05)')
+    parser.add_argument('--groupcorl', '--groupcor-loss', dest='groupcor_loss', action='store_true',
+                        help='group correlation loss?')
+    parser.add_argument('--groupcorls', '--groupcorl-scale', dest='groupcorls', default=1e-05, type=float,
+                        help='scale factor of groupcor_loss (default: 1e-05)')
+    parser.add_argument('--groupcorn', '--groupcor-num', dest='groupcor_num', default=1, type=int,
+                        help='the number of kernel sets for groups of groupcor_loss (if this number is n, group size is n*3) '
+                             '(available number: 1,2,4,8,16) (default: 1)')
     parser.add_argument('-warm', '--warmup-epoch', dest='warmup_epoch', default=0, type=int, metavar='N',
                         help='number of warmup epochs for applying the V2 method (default: 0)')
     parser.add_argument('--w-anal', '--weight-analysis', dest='w_anal', action='store_true',
