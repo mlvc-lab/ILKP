@@ -95,6 +95,10 @@ def find_kernel(model, opt):
     idx_all = []
 
     ref_layer = torch.Tensor(w_kernel[ref_layer_num])
+    if opt.ustv1 == 'sigmoid':
+        ref_layer = torch.sigmoid(ref_layer)
+    elif opt.ustv1 == 'tanh':
+        ref_layer = torch.tanh(ref_layer)
 
     # change kernels to dw-kernel
     if opt.arch in hasDiffLayersArchs:
@@ -123,6 +127,10 @@ def find_kernel(model, opt):
     for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
         idx = []
         cur_weight = torch.Tensor(w_kernel[i])
+        if opt.ustv1 == 'sigmoid':
+            cur_weight = torch.sigmoid(cur_weight)
+        elif opt.ustv1 == 'tanh':
+            cur_weight = torch.tanh(cur_weight)
 
         # change kernels to dw-kernel
         if opt.arch in hasDiffLayersArchs:
@@ -310,6 +318,8 @@ def save_model(ckpt, indices_all):
         if opt.version != 'v2qnb':
             new_model_filename += 'b{}'.format(opt.quant_bit_b)
         new_model_filename += '_eps{:.0e}'.format(opt.epsilon)
+    if opt.version.find('v2') != -1 and opt.ustv1 != '':
+        new_model_filename += f'_ustv1-{opt.ustv1}'
     # elif opt.version in ['v3', 'v3a']:
     #     new_model_filename += '_d{}'.format(opt.bind_size)
     new_model_filename += '.pth'

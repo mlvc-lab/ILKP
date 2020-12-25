@@ -209,6 +209,14 @@ def main(args):
             train_info += '\n==> Version: {} '.format(opt.version)
             if opt.tv_loss:
                 train_info += 'with TV loss '
+            if opt.ortho_loss:
+                train_info += 'with Orthogonal loss '
+            if opt.cor_loss:
+                train_info += 'with Correlation loss '
+            if opt.ortho_cor_loss:
+                train_info += 'with Ortho-Correlation loss '
+            if opt.groupcor_loss:
+                train_info += 'with Grouped Correlation loss '
             train_info += '/ SaveEpoch: {}'.format(opt.save_epoch)
             if epoch < opt.warmup_epoch and opt.version.find('v2') != -1:
                 train_info += '\n==> V2 Warmup epochs up to {} epochs'.format(
@@ -702,36 +710,40 @@ def idxtoweight(opt, model, indices_all, version):
     else:
         indices = indices_all
 
-    ref_layer_num = opt.refnum
+    ref_layer = w_kernel[opt.refnum]
     if version.find('v2') != -1:
+        if opt.ustv2 == 'sigmoid':
+            ref_layer = torch.sigmoid(ref_layer)
+        elif opt.ustv2 == 'tanh':
+            ref_layer = torch.tanh(ref_layer)
         for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
             for j in range(len(w_kernel[i])):
                 for k in range(len(w_kernel[i][j])):
                     if version in ['v2nb', 'v2qnb', 'v2qqnb']:
                         ref_idx, alpha = indices[i-1][j*len(w_kernel[i][j])+k]
+                        v = ref_idx // len(ref_layer[0])
+                        w = ref_idx % len(ref_layer[0])
+                        w_kernel[i][j][k] = alpha * ref_layer[v][w]
                     else:
                         ref_idx, alpha, beta = indices[i-1][j*len(w_kernel[i][j])+k]
-                    v = ref_idx // len(w_kernel[ref_layer_num][0])
-                    w = ref_idx % len(w_kernel[ref_layer_num][0])
-                    if version in ['v2nb', 'v2qnb', 'v2qqnb']:
-                        w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w]
-                    else:
-                        w_kernel[i][j][k] = alpha * w_kernel[ref_layer_num][v][w] + beta
+                        v = ref_idx // len(ref_layer[0])
+                        w = ref_idx % len(ref_layer[0])
+                        w_kernel[i][j][k] = alpha * ref_layer[v][w] + beta
     elif version == 'v1':
         for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
             for j in range(len(w_kernel[i])):
                 for k in range(len(w_kernel[i][j])):
                     ref_idx = indices[i-1][j*len(w_kernel[i][j])+k]
-                    v = ref_idx // len(w_kernel[ref_layer_num][0])
-                    w = ref_idx % len(w_kernel[ref_layer_num][0])
-                    w_kernel[i][j][k] = w_kernel[ref_layer_num][v][w]
+                    v = ref_idx // len(ref_layer[0])
+                    w = ref_idx % len(ref_layer[0])
+                    w_kernel[i][j][k] = ref_layer[v][w]
 
     if arch_name in hasPWConvArchs:
         #TODO: v1 부분 코딩
         if version.find('v2') != -1:
             pwd = opt.pw_bind_size
             pws = opt.pwkernel_stride
-            ref_layer = torch.Tensor(w_pwkernel[ref_layer_num])
+            ref_layer = torch.Tensor(w_pwkernel[opt.refnum])
             ref_layer = ref_layer.view(ref_layer.size(0), ref_layer.size(1))
             ref_layer_slices = None
             num_slices = (ref_layer.size(1) - pwd) // pws + 1

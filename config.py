@@ -112,12 +112,16 @@ def config():
                              '(default: 1)')
     parser.add_argument('-N', '--new', dest='new', action='store_true',
                         help='new method?')
-    parser.add_argument('-refnum', '--ref_layer_num', dest='refnum', default=0, type=int, metavar='N',
+    parser.add_argument('-refnum', '--ref-layer-num', dest='refnum', default=0, type=int, metavar='N',
                         help='reference layer number (default: 0)')
     parser.add_argument('-eps', '--epsilon', dest='epsilon', default=1e-08, type=float, metavar='EPS',
                         help='epsilon for denominator of alpha in find_kernel (default: 1e-08)')
     parser.add_argument('-s', '--save-epoch', dest='save_epoch', default=1, type=int, metavar='N',
                         help='number of epochs to save checkpoint and to apply new method (default: 1)')
+    parser.add_argument('-ustv1', '--using-sig-tanhv1', dest='ustv1', default='', type=str,
+                        help='using sigmoid or tanh for finding similar kernel (default: none) (available options: sigmoid, tanh)')
+    parser.add_argument('-ustv2', '--using-sig-tanhv2', dest='ustv2', default='', type=str,
+                        help='using sigmoid or tanh for restoration kernel (default: none) (available options: sigmoid, tanh)')
     parser.add_argument('--tvl', '--tv-loss', dest='tv_loss', action='store_true',
                         help='total variation loss?')
     parser.add_argument('--tvls', '--tvl-scale', dest='tvls', default=1e-08, type=float,

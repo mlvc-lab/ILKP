@@ -79,6 +79,10 @@ def save_model(arch_name, state, epoch, is_best, opt, n_retrain: int=0):
             if opt.version != 'v2qnb':
                 file_name += 'b{}'.format(opt.quant_bit_b)
             file_name += '_eps{:.0e}'.format(opt.epsilon)
+        if opt.version.find('v2') != -1 and opt.ustv1 != '':
+            file_name += f'_ustv1-{opt.ustv1}'
+        if opt.version.find('v2') != -1 and opt.ustv2 != '':
+            file_name += f'_ustv2-{opt.ustv2}'
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
@@ -175,6 +179,10 @@ def save_index_n_kernel(opt, arch_name, epoch, model, indices_all, n_retrain):
             if opt.version != 'v2qnb':
                 file_name += 'b{}'.format(opt.quant_bit_b)
             file_name += '_eps{:.0e}'.format(opt.epsilon)
+        if opt.version.find('v2') != -1 and opt.ustv1 != '':
+            file_name += f'_ustv1-{opt.ustv1}'
+        if opt.version.find('v2') != -1 and opt.ustv2 != '':
+            file_name += f'_ustv2-{opt.ustv2}'
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
@@ -183,6 +191,17 @@ def save_index_n_kernel(opt, arch_name, epoch, model, indices_all, n_retrain):
             file_name += '_rt{}'.format(n_retrain)
         if opt.quant:
             file_name += '_q{}'.format(opt.quant_bit)
+    # if (not opt.new) and (opt.ortho_loss or opt.cor_loss or opt.ortho_cor_loss):
+    #     if arch_name in hasPWConvArchs:
+    #         file_name += '_pwd{}_pws{}'.format(opt.pw_bind_size, opt.pwkernel_stride)
+    if opt.ortho_loss:
+        file_name += '_orthol{:.0e}'.format(opt.orthols)
+    if opt.cor_loss:
+        file_name += '_corl{:.0e}'.format(opt.corls)
+    if opt.ortho_cor_loss:
+        file_name += '_orthocorl{:.0e}'.format(opt.orthocorls)
+    if opt.groupcor_loss:
+        file_name += '_groupcorl{:.0e}_g{}'.format(opt.groupcorls, opt.groupcor_num)
     if opt.basetest:
         file_name += '_wd{:.0e}'.format(opt.weight_decay)
     file_name += '.json'
@@ -235,6 +254,10 @@ def save_summary(arch_name, summary, opt, n_retrain: int=0):
             if opt.version != 'v2qnb':
                 file_name += 'b{}'.format(opt.quant_bit_b)
             file_name += '_eps{:.0e}'.format(opt.epsilon)
+        if opt.version.find('v2') != -1 and opt.ustv1 != '':
+            file_name += f'_ustv1-{opt.ustv1}'
+        if opt.version.find('v2') != -1 and opt.ustv2 != '':
+            file_name += f'_ustv2-{opt.ustv2}'
         file_name += '_s{}'.format(opt.save_epoch)
         if opt.warmup_epoch > 0:
             file_name += '_warm{}'.format(opt.warmup_epoch)
