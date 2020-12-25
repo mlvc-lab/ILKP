@@ -3,6 +3,7 @@ import pathlib
 from os.path import isfile
 
 from tqdm import tqdm
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -713,9 +714,9 @@ def idxtoweight(opt, model, indices_all, version):
     ref_layer = w_kernel[opt.refnum]
     if version.find('v2') != -1:
         if opt.ustv2 == 'sigmoid':
-            ref_layer = torch.sigmoid(ref_layer)
+            ref_layer = 1/(1 + np.exp(-ref_layer))
         elif opt.ustv2 == 'tanh':
-            ref_layer = torch.tanh(ref_layer)
+            ref_layer = np.tanh(ref_layer)
         for i in tqdm(range(1, num_layer), ncols=80, unit='layer'):
             for j in range(len(w_kernel[i])):
                 for k in range(len(w_kernel[i][j])):
