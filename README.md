@@ -50,18 +50,6 @@ Specially, you can train or test on any device (CPU/sinlge GPU/multi GPU) and re
 
 ----------
 
-## TODO
-
-- V2 Full precision(32bit)에서 나온 결과들 확인
-- quantization 안하고 fine-tuning도 해보기
-- fine-tuning없이 처음부터 학습하는거 결과 다시 보고
-- 처음부터 학습할 때 loss term 추가 혹은 과도한 outlier weight를 제거 및 regularization을 위한 weight clipping
-    - total variation loss
-    - weight clipping
-- Make TinyImageNet dataloader
-
-----------
-
 ## Files
 
 - `check_model_params.py`: optional file for calculating number of parameters
